@@ -17,6 +17,8 @@
 
 #include "base.h"
 
+#include <stdbool.h>
+
 #define VEC_MULT            2
 #define VEC_CAPACITY_INLINE 47
 

@@ -16,7 +16,7 @@ endif
 .PHONY: all
 all: $(OUT)
 
-$(OUT): vec.c main.c
+$(OUT): vec.c stream.c main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 .PHONY: run
