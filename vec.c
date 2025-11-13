@@ -9,61 +9,90 @@
  * please go to <https://unlicense.org/>.
 
  * Created: 2025-11-12
- * Description:
+ * Description: Vector implementation
  */
+
+#include <malloc.h>
+#include <stdbool.h>
+#include <string.h>
 
 #include "vec.h"
 
-#include <malloc.h>
-#include <string.h>
+void vec_init(vec_t *vec, u64 capacity)
+{
+  assert(vec);
+  memset(vec, 0, sizeof(*vec));
+  vec->size = 0;
+  if (capacity <= VEC_CAPACITY_INLINE)
+  {
+    vec->capacity                  = VEC_CAPACITY_INLINE;
+    vec->data.inlined.flag_inlined = true;
+  }
+  else
+  {
+    vec->capacity                  = capacity;
+    vec->data.inlined.flag_inlined = false;
+    vec->data.heap                 = calloc(1, vec->capacity);
+  }
+}
+
+bool vec_inlined(vec_t *vec)
+{
+  return vec && vec->data.inlined.flag_inlined;
+}
 
 void *vec_data(vec_t *vec)
 {
-  if (VEC_INLINED(vec))
-    return vec->data.inlined;
+  if (vec_inlined(vec))
+  {
+    return vec->data.inlined.mem;
+  }
   else
-    return vec->data.payload;
+  {
+    return vec->data.heap;
+  }
 }
 
 void vec_ensure(vec_t *vec, u64 size)
 {
-  if (!vec || size < vec->capacity)
-    return;
-  vec->capacity = MAX(vec->capacity + size, vec->capacity * VEC_MULT);
-  if (VEC_INLINED(vec))
-    return;
-  else if (!vec->data.payload)
+  assert(vec);
+  if (vec->capacity >= size)
   {
-    // Need to migrate from the inline store to a separate pointer
-    // FIXME: What if this fails?
-    vec->data.payload = calloc(1, vec->capacity);
-    if (vec->size > 0)
-    {
-      memcpy(vec->data.payload, vec->data.inlined, vec->size);
-      memset(vec->data.inlined, 0, VEC_INLINE_CAPACITY);
-    }
+    return;
   }
-  else
+  vec->capacity = MAX(vec->capacity * VEC_MULT, size);
+  if (vec->capacity > VEC_CAPACITY_INLINE && vec_inlined(vec))
   {
-    // FIXME: What if this fails?
-    vec->data.payload = realloc(vec->data.payload, vec->capacity);
+    // Turn off inlining
+    vec->data.inlined.flag_inlined = false;
+
+    // Create a separate heap buffer and copy our work so far over
+    u8 *buffer = calloc(1, vec->capacity);
+    if (vec->size > 0)
+      memcpy(buffer, vec->data.inlined.mem, vec->size);
+    vec->data.heap = buffer;
+  }
+  else if (!vec_inlined(vec))
+  {
+    vec->data.heap = realloc(vec->data.heap, vec->capacity);
   }
 }
 
-u8 *vec_append(vec_t *vec, void *data, u64 size)
+void *vec_append(vec_t *vec, const void *const ptr, u64 size)
 {
+  assert(vec);
   vec_ensure(vec, vec->size + size);
-  void *ptr = vec_data(vec) + vec->size;
-  memcpy(ptr, data, size);
+  void *vec_ptr = vec_data(vec) + vec->size;
+  memcpy(vec_ptr, ptr, size);
   vec->size += size;
-  return ptr;
+  return vec_ptr;
 }
 
 void vec_delete(vec_t *vec)
 {
-  if (!VEC_INLINED(vec))
-  {
-    free(vec->data.payload);
-  }
+  assert(vec);
+  if (!vec_inlined(vec))
+    free(vec->data.heap);
+
   memset(vec, 0, sizeof(*vec));
 }

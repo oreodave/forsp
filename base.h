@@ -15,6 +15,7 @@
 #ifndef BASE_H
 #define BASE_H
 
+#include <assert.h>
 #include <stdint.h>
 
 typedef uint8_t u8;
@@ -26,7 +27,10 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
-#define MAX(A, B) ((A) > (B) ? (A) : (B))
-#define MIN(A, B) ((A) > (B) ? (B) : (A))
+#define MAX(A, B)  ((A) > (B) ? (A) : (B))
+#define MIN(A, B)  ((A) > (B) ? (B) : (A))
+#define ARRSIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+#define FAIL(MSG) assert(0 && MSG)
 
 #endif

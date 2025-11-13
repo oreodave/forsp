@@ -1,8 +1,7 @@
 #+title: Forsp tasks
 #+filetags: clisp forsp
 
-* TODO Research Forsp
-** DONE Examine pre-existing material
+* DONE Examine pre-existing material
 SCHEDULED: <2025-11-11 Tue>
 - Article: https://xorvoid.com/forsp.html
 - Repo: https://github.com/xorvoid/forsp
