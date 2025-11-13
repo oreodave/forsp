@@ -12,9 +12,7 @@ understanding of how the language works from the ground up.
 DEADLINE: <2025-11-16 Sun>
 ** DONE Basic "Hello, world!"
 SCHEDULED: <2025-11-11 Tue>
-** DONE Vectors
-SCHEDULED: <2025-11-11 Tue>
-** TODO Streams
+** DONE Streams
 SCHEDULED: <2025-11-11 Tue>
 ** TODO Tokeniser/Parser
 SCHEDULED: <2025-11-11 Tue>
