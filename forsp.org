@@ -2,21 +2,14 @@
 #+filetags: clisp forsp
 
 * DONE Examine pre-existing material
-SCHEDULED: <2025-11-11 Tue>
 - Article: https://xorvoid.com/forsp.html
 - Repo: https://github.com/xorvoid/forsp
 - [[~/Code/ThirdParty/forsp/forsp.c]]
 How does it work?  Go through the examples and really get an
 understanding of how the language works from the ground up.
 * TODO Setup a primitive REPL
-DEADLINE: <2025-11-16 Sun>
 ** DONE Basic "Hello, world!"
-SCHEDULED: <2025-11-11 Tue>
-** DONE Streams
-SCHEDULED: <2025-11-11 Tue>
+** TODO Streams
 ** TODO Tokeniser/Parser
-SCHEDULED: <2025-11-11 Tue>
-** TODO Primitive push/pop/print
-SCHEDULED: <2025-11-11 Tue>
+** WIP Primitive push/pop/print
 ** TODO Loop
-SCHEDULED: <2025-11-11 Tue>
