@@ -1,8 +1,30 @@
-use std::fs;
-use std::process::exit;
+#[derive(Debug, Copy, Clone)]
+pub struct Position {
+    pub line: usize,
+    pub character: usize,
+    pub byte: usize,
+}
 
-fn read_file(filename: &str) -> Result<Vec<char>, std::io::Error> {
-    fs::read_to_string(filename).and_then(|contents| Ok(contents.chars().collect()))
+#[derive(Clone, Copy)]
+pub struct Reader<'a> {
+    pub name: &'a str,
+    pub position: Position,
+    pub buffer: &'a Vec<char>,
+}
+
+// TODO: We need to fit this into our pointer tagging scheme better
+#[derive(Debug)]
+pub enum Obj {
+    Nil,
+    Integer(i64),
+    Symbol(String),
+    List(Vec<Token>),
+}
+
+#[derive(Debug)]
+pub struct Token {
+    pub position: Position,
+    pub obj: Obj,
 }
 
 fn is_symbol_char(c: char) -> bool {
@@ -18,37 +40,8 @@ fn is_symbol_char(c: char) -> bool {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-struct Position {
-    line: usize,
-    character: usize,
-    byte: usize,
-}
-
-#[derive(Clone, Copy)]
-struct Reader<'a> {
-    name: &'a str,
-    position: Position,
-    buffer: &'a Vec<char>,
-}
-
-// TODO: We need to fit this into our pointer tagging scheme better
-#[derive(Debug)]
-enum Obj {
-    Nil,
-    Integer(i64),
-    Symbol(String),
-    List(Vec<Token>),
-}
-
-#[derive(Debug)]
-struct Token {
-    position: Position,
-    obj: Obj,
-}
-
 impl<'a> Reader<'a> {
-    fn new(name: &'a str, buffer: &'a Vec<char>) -> Reader<'a> {
+    pub fn new(name: &'a str, buffer: &'a Vec<char>) -> Reader<'a> {
         Reader {
             name: name,
             position: Position {
@@ -60,8 +53,41 @@ impl<'a> Reader<'a> {
         }
     }
 
-    fn at_end(&self) -> bool {
+    pub fn at_end(&self) -> bool {
         self.position.byte >= self.buffer.len()
+    }
+
+    pub fn parse_token(mut self) -> (Option<Token>, Reader<'a>) {
+        self = self.skip_whitespace();
+
+        let c = self.peek_char();
+        if c.is_none() {
+            // FIXME:Error: Possible?
+            return (None, self);
+        }
+        let c = c.unwrap();
+        match c {
+            ';' => self.skip_comments().parse_token(),
+            '(' => self.parse_list(),
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.parse_integer(),
+            _ => {
+                // Symbol
+                let token_iter = self.buffer[self.position.byte..]
+                    .iter()
+                    .take_while(|&&c| is_symbol_char(c));
+
+                let token_contents: String = token_iter.collect();
+                let token_length = token_contents.len();
+
+                let token = Token {
+                    position: self.position,
+                    obj: Obj::Symbol(token_contents),
+                };
+
+                self = self.skip_chars(token_length);
+                (Some(token), self)
+            }
+        }
     }
 
     fn space_left(self) -> usize {
@@ -195,68 +221,6 @@ impl<'a> Reader<'a> {
                 }),
                 self,
             )
-        }
-    }
-
-    fn parse_token(mut self) -> (Option<Token>, Reader<'a>) {
-        self = self.skip_whitespace();
-
-        let c = self.peek_char();
-        if c.is_none() {
-            // FIXME:Error: Possible?
-            return (None, self);
-        }
-        let c = c.unwrap();
-        match c {
-            ';' => self.skip_comments().parse_token(),
-            '(' => self.parse_list(),
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.parse_integer(),
-            _ => {
-                // Symbol
-                let token_iter = self.buffer[self.position.byte..]
-                    .iter()
-                    .take_while(|&&c| is_symbol_char(c));
-
-                let token_contents: String = token_iter.collect();
-                let token_length = token_contents.len();
-
-                let token = Token {
-                    position: self.position,
-                    obj: Obj::Symbol(token_contents),
-                };
-
-                self = self.skip_chars(token_length);
-                (Some(token), self)
-            }
-        }
-    }
-}
-
-fn main() {
-    let filename = "test.txt";
-    let buffer = read_file(filename);
-    if let Err(e) = buffer {
-        eprintln!("ERROR: Could not read `{}`: {}", filename, e);
-        exit(1);
-    }
-    let buffer = buffer.unwrap();
-    let mut reader = Reader::new(filename, &buffer);
-    let mut i = 0;
-    while true {
-        let (token, new_reader) = reader.parse_token();
-        if (new_reader.at_end()) {
-            break;
-        } else if token.is_none() {
-            eprintln!(
-                "Error: Couldn't parse (TODO: better messages)\n--> {}:{}:{}",
-                new_reader.name, new_reader.position.line, new_reader.position.character
-            );
-            exit(1);
-        } else {
-            let token = token.unwrap();
-            println!("{}: {:#?}", i, token);
-            reader = new_reader;
-            i += 1;
         }
     }
 }
