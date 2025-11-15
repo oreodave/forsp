@@ -5,39 +5,6 @@ fn read_file(filename: &str) -> Result<Vec<char>, std::io::Error> {
     fs::read_to_string(filename).and_then(|contents| Ok(contents.chars().collect()))
 }
 
-#[derive(Debug, Copy, Clone)]
-struct Position {
-    line: usize,
-    character: usize,
-}
-
-// TODO: We need to fit this into our pointer tagging scheme better
-#[derive(Debug)]
-enum Obj {
-    Nil,
-    Symbol(String),
-    Pop(String),
-    Push(String),
-    List(Vec<Token>),
-}
-
-#[derive(Debug)]
-struct Token {
-    position: Position,
-    contents: Obj,
-}
-
-struct TokenStream {
-    source_name: String,
-    contents: Vec<Token>,
-}
-
-#[derive(Debug, Copy, Clone)]
-struct ReadState {
-    byte: usize,
-    position: Position,
-}
-
 fn is_symbol_char(c: char) -> bool {
     if c.is_alphabetic() || c.is_digit(10) {
         true
@@ -51,173 +18,245 @@ fn is_symbol_char(c: char) -> bool {
     }
 }
 
-fn parse_token(stream: &Vec<char>, state: ReadState) -> (Option<Token>, ReadState) {
-    if state.byte >= stream.len() {
-        return (None, state);
+#[derive(Debug, Copy, Clone)]
+struct Position {
+    line: usize,
+    character: usize,
+    byte: usize,
+}
+
+#[derive(Clone, Copy)]
+struct Reader<'a> {
+    name: &'a str,
+    position: Position,
+    buffer: &'a Vec<char>,
+}
+
+// TODO: We need to fit this into our pointer tagging scheme better
+#[derive(Debug)]
+enum Obj {
+    Nil,
+    Integer(i64),
+    Symbol(String),
+    List(Vec<Token>),
+}
+
+#[derive(Debug)]
+struct Token {
+    position: Position,
+    obj: Obj,
+}
+
+impl<'a> Reader<'a> {
+    fn new(name: &'a str, buffer: &'a Vec<char>) -> Reader<'a> {
+        Reader {
+            name: name,
+            position: Position {
+                byte: 0,
+                line: 1,
+                character: 1,
+            },
+            buffer: buffer,
+        }
     }
-    let mut state = state;
-    let c = stream[state.byte];
-    if c == ';' {
-        // Comments
-        let mut c = c;
-        while state.byte < stream.len() && !(c == '\n' || c == '\r') {
-            state.byte += 1;
-            if state.byte < stream.len() {
-                c = stream[state.byte];
-            }
+
+    fn at_end(&self) -> bool {
+        self.position.byte >= self.buffer.len()
+    }
+
+    fn space_left(self) -> usize {
+        if self.at_end() {
+            0
+        } else {
+            self.buffer.len() - self.position.byte
         }
-        // tail call
-        parse_token(stream, state)
-    } else if c.is_whitespace() {
-        let mut c = c;
-        while state.byte < stream.len() && c.is_whitespace() {
-            if c == '\n' || c == '\r' {
-                state.position.line += 1;
-                state.position.character = 1;
-            } else {
-                state.position.character += 1;
-            }
-            state.byte += 1; // move to next character
-            if state.byte < stream.len() {
-                c = stream[state.byte]
-            }
+    }
+
+    fn peek_char(&self) -> Option<char> {
+        if self.at_end() {
+            None
+        } else {
+            Some(self.buffer[self.position.byte])
         }
-        // tail call
-        parse_token(stream, state)
-    } else if c == '$' {
-        // Parse the remainder as a token, then tag
-        state.byte += 1;
-        let (token, state) = parse_token(stream, state);
-        match token {
-            // NOTE: Supremely impressed by this level of pattern matching
-            Some(Token {
-                position: pos,
-                contents: Obj::Symbol(contents),
-            }) => (
+    }
+
+    fn peek_chars(&self, n: usize) -> Option<&'a [char]> {
+        if self.at_end() || self.space_left() < n {
+            None
+        } else {
+            Some(&self.buffer[self.position.byte..self.position.byte + n])
+        }
+    }
+
+    fn skip_chars(mut self, n: usize) -> Reader<'a> {
+        for _ in 0..n {
+            match self.peek_char() {
+                Some('\n') | Some('\r') => {
+                    self.position.line += 1;
+                    self.position.character = 0;
+                }
+                Some(_) => {
+                    self.position.character += 1;
+                }
+                None => {
+                    return self;
+                }
+            }
+            self.position.byte += 1;
+        }
+        self
+    }
+
+    fn skip_char(self) -> Reader<'a> {
+        self.skip_chars(1)
+    }
+
+    fn skip_comments(mut self) -> Reader<'a> {
+        let c = self.peek_char();
+        if c.is_none() || c.unwrap() != ';' {
+            return self;
+        }
+        self.position.byte += 1;
+        while let Some(c) = self.peek_char()
+            && c != '\n'
+            && c != '\r'
+        {
+            self = self.skip_char();
+        }
+        self
+    }
+
+    fn skip_whitespace(mut self) -> Reader<'a> {
+        let mut c = self.peek_char();
+        while c.is_some() && c.unwrap().is_whitespace() {
+            self = self.skip_char();
+            c = self.peek_char();
+        }
+        self
+    }
+
+    fn parse_integer(self) -> (Option<Token>, Reader<'a>) {
+        let mut new_reader = self;
+        // Keep peek, skipping until we don't find a numeric
+        let mut c = new_reader.peek_char();
+        while c.is_some() && c.unwrap().is_digit(10) {
+            new_reader = new_reader.skip_char();
+            c = new_reader.peek_char();
+        }
+
+        // TODO: Maybe consider not creating a new string here?
+        let int_str: String = self.buffer[self.position.byte..new_reader.position.byte]
+            .iter()
+            .collect();
+        match int_str.parse::<i64>() {
+            Ok(x) => (
                 Some(Token {
-                    position: pos,
-                    contents: Obj::Pop(contents),
+                    position: self.position,
+                    obj: Obj::Integer(x),
                 }),
-                state,
+                new_reader,
             ),
-            // FIXME: Consider making an error here
-            _ => (None, state),
-        }
-    } else if c == '^' {
-        // Parse the remainder as a token, then tag
-        state.byte += 1;
-        let (token, state) = parse_token(stream, state);
-        match token {
-            // NOTE: Supremely impressed by this level of pattern matching
-            Some(Token {
-                position: pos,
-                contents: Obj::Symbol(contents),
-            }) => (
-                Some(Token {
-                    position: pos,
-                    contents: Obj::Push(contents),
-                }),
-                state,
-            ),
-            _ => {
-                // FIXME: Consider making an error here
-                (None, state)
+            Err(_e) =>
+            // FIXME:Error: Propagate integer parsing error upwards
+            {
+                (None, self)
             }
         }
-    } else if c == '(' {
+    }
+
+    fn parse_list(mut self) -> (Option<Token>, Reader<'a>) {
         // TODO: We need to fit this into our pointer tagging scheme better
-        let root_pos = state.position;
+        let root_pos = self.position;
         let mut tokens: Vec<Token> = Vec::new();
-        state.byte += 1;
-        while state.byte < stream.len() && stream[state.byte] != ')' {
-            let (token, new_state) = parse_token(stream, state);
+
+        self = self.skip_char();
+        while let Some(c_) = self.peek_char()
+            && c_ != ')'
+        {
+            let (token, new_reader) = self.parse_token();
             if let Some(token) = token {
                 tokens.push(token);
             } else {
-                return (None, new_state);
+                // FIXME:Error: Propagation
+                return (None, new_reader);
             }
-            state = new_state;
+            self = new_reader;
         }
 
-        println!("state.byte={}, c={}", state.byte, stream[state.byte]);
-
-        if state.byte >= stream.len() {
-            // FIXME: No end bracket, error
-            (None, state)
+        if self.at_end() {
+            // FIXME:Error: No end bracket
+            (None, self)
         } else {
-            state.byte += 1;
+            self.skip_char();
             (
                 Some(Token {
                     position: root_pos,
-                    contents: Obj::List(tokens),
+                    obj: Obj::List(tokens),
                 }),
-                state,
+                self,
             )
         }
-    } else {
-        // Token
-        let token_iter = stream[state.byte..]
-            .iter()
-            .take_while(|&&c| is_symbol_char(c));
-
-        let token_contents: String = token_iter.collect();
-        let token_length = token_contents.len();
-
-        let token = Token {
-            position: state.position,
-            contents: Obj::Symbol(token_contents),
-        };
-
-        state.byte += token_length;
-        state.position.character += token_length;
-
-        (Some(token), state)
     }
-}
 
-fn parse_tokens(stream_name: &str, stream: Vec<char>) -> TokenStream {
-    let mut read_state = ReadState {
-        position: Position {
-            line: 1,
-            character: 1,
-        },
-        byte: 0,
-    };
+    fn parse_token(mut self) -> (Option<Token>, Reader<'a>) {
+        self = self.skip_whitespace();
 
-    let mut token_stream = TokenStream {
-        source_name: stream_name.to_string(),
-        contents: Vec::new(),
-    };
+        let c = self.peek_char();
+        if c.is_none() {
+            // FIXME:Error: Possible?
+            return (None, self);
+        }
+        let c = c.unwrap();
+        match c {
+            ';' => self.skip_comments().parse_token(),
+            '(' => self.parse_list(),
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.parse_integer(),
+            _ => {
+                // Symbol
+                let token_iter = self.buffer[self.position.byte..]
+                    .iter()
+                    .take_while(|&&c| is_symbol_char(c));
 
-    while read_state.byte < stream.len() {
-        let (possible_token, new_read_state) = parse_token(&stream, read_state);
-        match possible_token {
-            // FIXME: report NONEs more aggressively?
-            None => break,
-            Some(token) => {
-                token_stream.contents.push(token);
+                let token_contents: String = token_iter.collect();
+                let token_length = token_contents.len();
+
+                let token = Token {
+                    position: self.position,
+                    obj: Obj::Symbol(token_contents),
+                };
+
+                self = self.skip_chars(token_length);
+                (Some(token), self)
             }
         }
-        read_state = new_read_state;
     }
-
-    token_stream
 }
 
 fn main() {
     let filename = "test.txt";
-    let stream = read_file(filename);
-    if let Err(e) = stream {
+    let buffer = read_file(filename);
+    if let Err(e) = buffer {
         eprintln!("ERROR: Could not read `{}`: {}", filename, e);
         exit(1);
     }
-    let stream = stream.unwrap();
-    // println!("{}: `{:?}`", filename, stream);
-    let tokens = parse_tokens(filename, stream);
-    for token in tokens.contents {
-        println!(
-            "{}:{}:{}:  `{:?}`",
-            tokens.source_name, token.position.line, token.position.character, token.contents
-        );
+    let buffer = buffer.unwrap();
+    let mut reader = Reader::new(filename, &buffer);
+    let mut i = 0;
+    while true {
+        let (token, new_reader) = reader.parse_token();
+        if (new_reader.at_end()) {
+            break;
+        } else if token.is_none() {
+            eprintln!(
+                "Error: Couldn't parse (TODO: better messages)\n--> {}:{}:{}",
+                new_reader.name, new_reader.position.line, new_reader.position.character
+            );
+            exit(1);
+        } else {
+            let token = token.unwrap();
+            println!("{}: {:#?}", i, token);
+            reader = new_reader;
+            i += 1;
+        }
     }
 }
