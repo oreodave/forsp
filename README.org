@@ -41,5 +41,5 @@ make run
 #+end_src
 ... or, after building:
 #+begin_src sh
-./forsp.out <args>
+./build/forsp.out <args>
 #+end_src

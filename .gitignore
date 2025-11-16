@@ -1,5 +1,4 @@
-*.out
 TAGS
-/target
+/build/
 /.cache/
 /compile_commands.json

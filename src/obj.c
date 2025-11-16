@@ -92,7 +92,7 @@ bool obj_equal(obj_t *a, obj_t *b)
 
 obj_t *obj_copy(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 4);
+  static_assert(NUM_TYPES == 4, "obj_copy implemented for 4 types of object.");
   if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
   {
     return obj;
@@ -110,7 +110,7 @@ obj_t *obj_copy(state_t *state, obj_t *obj)
 
 obj_t *obj_clone(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 4);
+  static_assert(NUM_TYPES == 4, "obj_clone implemented for 4 types of object.");
   if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
   {
     return obj;
@@ -128,7 +128,8 @@ obj_t *obj_clone(state_t *state, obj_t *obj)
 
 void obj_string(obj_t *obj, vec_t *vec)
 {
-  static_assert(NUM_TYPES == 4);
+  static_assert(NUM_TYPES == 4,
+                "obj_string implemented for 4 types of object.");
   if (IS_NIL(obj))
   {
     vec_append(vec, "()", 2);
