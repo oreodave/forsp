@@ -227,7 +227,6 @@ void state_delete(state_t *state)
 {
   assert(state);
 
-  // TODO: Clean up symbol cache
   obj_t **ptrs = (void *)vec_data(&state->symcache);
   for (u64 i = 0; i < state->symcache.size / sizeof(*ptrs); ++i)
   {
@@ -239,7 +238,6 @@ void state_delete(state_t *state)
   }
   vec_delete(&state->symcache);
 
-  // TODO: Clean up memory
   ptrs = (void *)vec_data(&state->memory);
   for (u64 i = 0; i < state->memory.size / sizeof(*ptrs); ++i)
   {

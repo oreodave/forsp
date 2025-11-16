@@ -118,7 +118,6 @@ obj_t *stream_read_list(state_t *state, stream_t *stream)
   stream_forward(stream, 1);
   if (stream_at_end(stream))
   {
-    // FIXME:Stream_Error: No close bracket
     FAIL("reader: Expected close bracket\n--> %s:[%lu]\n", stream->name,
          stream->position);
     return NIL;
@@ -178,7 +177,6 @@ obj_t *stream_read(state_t *state, stream_t *stream)
 {
   stream_skip_whitespace(stream);
   if (stream_at_end(stream))
-    // FIXME:Stream_Error: EOS
     return NIL;
   else if (stream->read_stack)
   {
