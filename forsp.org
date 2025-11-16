@@ -1,16 +1,25 @@
 #+title: Forsp tasks
 #+filetags: c forsp
 
-* DONE Examine pre-existing material
+* Resources
 - Article: https://xorvoid.com/forsp.html
 - Repo: https://github.com/xorvoid/forsp
 - [[~/Code/ThirdParty/forsp/forsp.c]]
-How does it work?  Go through the examples and really get an
-understanding of how the language works from the ground up.
-* DONE Basic "Hello, world!"
-* DONE Streams
-* DONE Tokeniser/Parser
-* TODO Environments
+* TODO Do we need better errors?
+Currently we use ~FAIL~ to stop on a critical error.  This is used in
+parsing - which can be forgiven for hard stops - and the object API.
+This is nice, but if we want to introduce more powerful features (like
+being able to catch and deal with errors in the actual language) we'll
+need a centralised approach to this.  FAIL isn't catchable.
+
+We also need a way to propagate errors through potentially many layers
+of recursion - perhaps even adding info at each pass step.
+* WIP Parser
+** TODO stream_init_cstr
+Create a new stream from a CString passed in.  Makes testing easier
+and adds an avenue for better testing.
+** TODO
+* WIP Environments
 SCHEDULED: <2025-11-16 Sun>
 * TODO Closures
 SCHEDULED: <2025-11-17 Mon>

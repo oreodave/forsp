@@ -1,0 +1,45 @@
+#+options: toc:nil
+#+begin_example
+┌────────────────────────────┐
+│  _____                     │
+│ |  ___|__  _ __ ___ _ __   │
+│ | |_ / _ \| '__/ __| '_ \  │
+│ |  _| (_) | |  \__ \ |_) | │
+│ |_|  \___/|_|  |___/ .__/  │
+│                    |_|     │
+└────────────────────────────┘
+#+end_example
+
+An implementation of the Forsp language.
+
+Please see [[https://xorvoid.com/forsp.html][Xorvoid's article]] and
+[[https://github.com/xorvoid/forsp][Xorovoid's implementation]] for
+the "founding documents" of this language.
+
+* Goals
+- Fully functional intepreter, with a REPL feature as well as
+  interpreting files
+- A compiler implementation, targeting x86-64
+- Extensions to standard language.  To be fleshed out further, but
+  some ideas are:
+  - A module system to link up external code files
+  - FFI
+  - Records
+* Requirements
+- Linux
+  - Hasn't been tested on Windows or MacOS, nothing that should be
+    Linux specific with the codebase itself.
+- gcc/clang (with C11 support + some C23 support)
+- make
+* How to build
+#+begin_src sh
+make
+#+end_src
+* How to run
+#+begin_src sh
+make run
+#+end_src
+... or, after building:
+#+begin_src sh
+./forsp.out <args>
+#+end_src
