@@ -120,7 +120,7 @@ obj_t *stream_read_list(state_t *state, stream_t *stream)
   if (stream_at_end(stream))
   {
     // FIXME:Stream_Error: No close bracket
-    FAIL("Expected close bracket\n-->%s:[%lu]\n", stream->name,
+    FAIL("reader: Expected close bracket\n--> %s:[%lu]\n", stream->name,
          stream->position);
     return NIL;
   }
@@ -137,8 +137,8 @@ obj_t *stream_read_list(state_t *state, stream_t *stream)
   if (stream_peek(stream) == ')')
     stream_forward(stream, 1);
   else
-    FAIL("Expected close bracket\n-->%s:[%lu]\n-->%s:[%lu]\n", stream->name,
-         pos, stream->name, stream->position);
+    FAIL("reader: Expected close bracket\n--> %s:[%lu]\n--> %s:[%lu]\n",
+         stream->name, pos, stream->name, stream->position);
 
   // Create an actual list now
   obj_t **objects = (obj_t **)vec_data(&items);
@@ -153,7 +153,7 @@ obj_t *stream_read_number(stream_t *stream)
 {
   u64 length = strspn(stream->buffer + stream->position, "0123456789");
   if (length == 0)
-    FAIL("Expected number to parse, read `%c`\n--> %s:[%lu]\n",
+    FAIL("reader: Expected number to parse, read `%c`\n--> %s:[%lu]\n",
          stream_peek(stream), stream->name, stream->position);
   char buffer[length + 1];
   memcpy(buffer, stream->buffer + stream->position, length);
@@ -168,8 +168,8 @@ obj_t *stream_read_sym(state_t *state, stream_t *stream)
 {
   u64 length = strspn(stream->buffer + stream->position, ACCEPTABLE_SYM_CHARS);
   if (length == 0)
-    FAIL("Expected symbol, read `%c`\n--> %s:[%lu]\n", stream_peek(stream),
-         stream->name, stream->position);
+    FAIL("reader: Expected symbol, read `%c`\n--> %s:[%lu]\n",
+         stream_peek(stream), stream->name, stream->position);
   obj_t *obj = intern(state, stream->buffer + stream->position, length);
   stream_forward(stream, length);
   return obj;
@@ -237,8 +237,8 @@ obj_t *stream_read(state_t *state, stream_t *stream)
   }
   else
   {
-    FAIL("Unknown character (%d=`%c`), stopping read.\n--> %s:[%lu]\n", c[0],
-         c[0], stream->name, stream->position);
+    FAIL("reader: Unknown character (%d=`%c`)\n--> %s:[%lu]\n", c[0], c[0],
+         stream->name, stream->position);
     return NIL;
   }
 }

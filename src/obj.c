@@ -64,14 +64,14 @@ pair_t *as_pair(obj_t *obj)
 obj_t *car(obj_t *obj)
 {
   if (!IS_PAIR(obj))
-    FAIL("Expected pair for CAR, got %p\n", obj);
+    FAIL("car: Expected pair, got %p\n", obj);
   return as_pair(obj)->car;
 }
 
 obj_t *cdr(obj_t *obj)
 {
   if (!IS_PAIR(obj))
-    FAIL("Expected pair for CDR, got %p\n", obj);
+    FAIL("cdr: Expected pair, got %p\n", obj);
   return as_pair(obj)->cdr;
 }
 
@@ -135,6 +135,10 @@ void obj_string(obj_t *obj, vec_t *vec)
       }
     }
     vec_append(vec, ")", 1);
+  }
+  else
+  {
+    FAIL("obj_string: unexpected object(%p), not tagged\n", obj);
   }
 }
 
