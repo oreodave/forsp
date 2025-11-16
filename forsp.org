@@ -7,9 +7,9 @@
 - [[~/Code/ThirdParty/forsp/forsp.c]]
 How does it work?  Go through the examples and really get an
 understanding of how the language works from the ground up.
-* TODO Setup a primitive REPL
-** DONE Basic "Hello, world!"
-** TODO Streams
-** TODO Tokeniser/Parser
-** WIP Primitive push/pop/print
-** TODO Loop
+* DONE Basic "Hello, world!"
+* DONE Streams
+* DONE Tokeniser/Parser
+* TODO Closures
+* TODO Primitives
+* TODO Compute/evaluate
