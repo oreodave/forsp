@@ -10,6 +10,8 @@ understanding of how the language works from the ground up.
 * DONE Basic "Hello, world!"
 * DONE Streams
 * DONE Tokeniser/Parser
+* TODO Environments
+SCHEDULED: <2025-11-16 Sun>
 * TODO Closures
 SCHEDULED: <2025-11-17 Mon>
 * TODO Primitives
