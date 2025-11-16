@@ -24,15 +24,15 @@ typedef struct
   obj_t *car, *cdr;
 } pair_t;
 
-typedef struct
-{
-  obj_t *body, *env;
-} closure_t;
+// typedef struct
+// {
+//   obj_t *body, *env;
+// } closure_t;
 
-typedef struct
-{
-  void (*function)(obj_t *env);
-} primitive_t;
+// typedef struct
+// {
+//   void (*function)(obj_t *env);
+// } primitive_t;
 
 typedef struct
 {
@@ -63,8 +63,6 @@ pair_t *as_pair(obj_t *);
 obj_t *car(obj_t *);
 obj_t *cdr(obj_t *);
 
-// Closures
-obj_t *make_closure(state_t *, obj_t *);
 
 // General
 bool obj_equal(obj_t *, obj_t *);
