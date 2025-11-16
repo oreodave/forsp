@@ -1,0 +1,5 @@
+:PROPERTIES:
+:GPTEL_MODEL: gpt-4o-mini
+:GPTEL_BACKEND: ChatGPT
+:GPTEL_SYSTEM: You are a large language model living in Emacs and a helpful assistant. Respond concisely and with justification.
+:END:
