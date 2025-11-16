@@ -27,6 +27,16 @@ typedef struct
 
 typedef struct
 {
+  obj_t *body, *env;
+} closure_t;
+
+typedef struct
+{
+  void (*function)(obj_t *env);
+} primitive_t;
+
+typedef struct
+{
   vec_t memory;
   vec_t symcache;
 
