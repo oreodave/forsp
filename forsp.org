@@ -1,5 +1,5 @@
 #+title: Forsp tasks
-#+filetags: clisp forsp
+#+filetags: c forsp
 
 * DONE Examine pre-existing material
 - Article: https://xorvoid.com/forsp.html
@@ -11,5 +11,8 @@ understanding of how the language works from the ground up.
 * DONE Streams
 * DONE Tokeniser/Parser
 * TODO Closures
+SCHEDULED: <2025-11-17 Mon>
 * TODO Primitives
+SCHEDULED: <2025-11-17 Mon>
 * TODO Compute/evaluate
+SCHEDULED: <2025-11-18 Tue>

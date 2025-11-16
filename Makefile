@@ -25,4 +25,4 @@ run: $(OUT)
 
 .PHONY:
 clean:
-	rm -v $(OUT)
+	git clean -fdx
