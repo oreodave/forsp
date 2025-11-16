@@ -46,24 +46,31 @@ typedef struct
   obj_t *env;
 } state_t;
 
-// Untracked by state
+void state_delete(state_t *);
+
+// Integers
 obj_t *make_int(i64);
-obj_t *make_pair(pair_t);
 i64 as_int(obj_t *);
-char *as_sym(obj_t *);
-pair_t *as_pair(obj_t *);
 
-obj_t *car(obj_t *);
-obj_t *cdr(obj_t *);
-bool obj_equal(obj_t *, obj_t *);
-
-void obj_string(obj_t *, vec_t *);
-
-// Tracked by state
+// Symbols
 obj_t *intern(state_t *, char *, u64);
+char *as_sym(obj_t *);
+
+// Pairs
+obj_t *make_pair(pair_t);
 obj_t *cons(state_t *, obj_t *, obj_t *);
 obj_t *make_list(state_t *, obj_t **, u64);
+pair_t *as_pair(obj_t *);
+obj_t *car(obj_t *);
+obj_t *cdr(obj_t *);
 
-void state_delete(state_t *);
+// Closures
+obj_t *make_closure(state_t *, obj_t *);
+
+// General
+bool obj_equal(obj_t *, obj_t *);
+obj_t *obj_copy(state_t *, obj_t *);
+obj_t *obj_clone(state_t *, obj_t *);
+void obj_string(obj_t *, vec_t *);
 
 #endif
