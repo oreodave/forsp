@@ -91,6 +91,24 @@ bool obj_equal(obj_t *a, obj_t *b)
     return false;
 }
 
+obj_t *obj_copy(state_t *state, obj_t *obj)
+{
+  static_assert(NUM_TYPES == 4);
+  if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
+  {
+    return obj;
+  }
+  else if (IS_PAIR(obj))
+  {
+    // Not a deep clone, so just copy the container
+    return cons(state, car(obj), cdr(obj));
+  }
+  else
+  {
+    FAIL("obj_copy: unexpected object(%p), not tagged\n", obj);
+  }
+}
+
 void obj_string(obj_t *obj, vec_t *vec)
 {
   static_assert(NUM_TYPES == 4);
