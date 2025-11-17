@@ -5,7 +5,11 @@
 - Article: https://xorvoid.com/forsp.html
 - Repo: https://github.com/xorvoid/forsp
 - [[~/Code/ThirdParty/forsp/forsp.c]]
-* TODO Do we need better errors?
+
+* TODO Backlog
+** TODO Do we need better errors?
+[[file:src/obj.c]]
+[[file:src/parser.c]]
 Currently we use ~FAIL~ to stop on a critical error.  This is used in
 parsing - which can be forgiven for hard stops - and the object API.
 This is nice, but if we want to introduce more powerful features (like
@@ -14,16 +18,35 @@ need a centralised approach to this.  FAIL isn't catchable.
 
 We also need a way to propagate errors through potentially many layers
 of recursion - perhaps even adding info at each pass step.
-* WIP Parser
+** TODO Can we make a better abstraction for environments?
+[[file:include/obj.h::// Environments]]
+An environment is an ALIST.  This is okay, but not great - O(n) time
+to search stuff up.  Furthermore, _every_ time we set something, the
+environment alist grows - this is bad for long term performance.
+
+It makes lexical environments trivial, which is nice.  We need
+something better though.
 ** TODO stream_init_cstr
+[[file:include/parser.h]]
 Create a new stream from a CString passed in.  Makes testing easier
 and adds an avenue for better testing.
-** TODO
-* WIP Environments
-SCHEDULED: <2025-11-16 Sun>
-* TODO Closures
+* TODO Closures :closures:
 SCHEDULED: <2025-11-17 Mon>
-* TODO Primitives
+** TODO Write API
 SCHEDULED: <2025-11-17 Mon>
+[[file:include/obj.h]]
+[[file:src/obj.c]]
+** TODO Write parser
+SCHEDULED: <2025-11-17 Mon>
+[[file:src/parser.c]]
+* TODO Primitives :primitives:
+SCHEDULED: <2025-11-17 Mon>
+** TODO Write API
+SCHEDULED: <2025-11-17 Mon>
+[[file:include/obj.h]]
+[[file:src/obj.c]]
+** TODO Write parser
+SCHEDULED: <2025-11-17 Mon>
+[[file:src/parser.c]]
 * TODO Compute/evaluate
 SCHEDULED: <2025-11-18 Tue>
