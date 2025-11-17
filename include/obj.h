@@ -63,6 +63,9 @@ pair_t *as_pair(obj_t *);
 obj_t *car(obj_t *);
 obj_t *cdr(obj_t *);
 
+// Environments
+obj_t *env_find(obj_t *env, obj_t *key);
+obj_t *env_set(state_t *state, obj_t *env, obj_t *key, obj_t *value);
 
 // General
 bool obj_equal(obj_t *, obj_t *);
