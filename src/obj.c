@@ -80,7 +80,7 @@ obj_t *env_find(obj_t *env, obj_t *key)
     FAIL("env_find: Expected a symbol for KEY, got (%p)\n", key);
   for (obj_t *iter = env; iter; iter = cdr(iter))
   {
-    assert(IS_LIST(iter));
+    assert(IS_PAIR(iter));
     obj_t *item = car(iter);
     if (car(item) == key)
       return cdr(item);
