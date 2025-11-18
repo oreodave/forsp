@@ -30,23 +30,49 @@ something better though.
 [[file:include/parser.h]]
 Create a new stream from a CString passed in.  Makes testing easier
 and adds an avenue for better testing.
+* TODO Memory Management :gc:
+We need a better memory management scheme for our heap allocated
+stuff.
+
+We currently maintain a vector of allocated objects, which is appended
+to every time we allocate something to the heap as part of our
+~make_*~ functions.  This is all cleaned up in ~state_delete~, which
+is only really called at the end of the program.  In practice, this
+means we don't really do any proactive collection of memory - which
+means the memory footprint of the program will grow indefinitely
+despite there being situations where we could reasonably clean memory.
+
+I'd like to implement a tracing GC strategy, so-called mark/sweep:
+- Consider all objects unmarked at the start of the procedure
+- Mark all "root" objects (immediately accessible via the environment)
+  then recursively mark any sub-objects of them
+- Iterate through all unmarked objects and clean them
+
+This way we'll only clean the objects that are actually accessible by
+the program at any small time interval.
+** TODO Consider the structure for memory allocation
+Our current memory allocation strategy just uses ~malloc~ at the point
+of creation.  ~malloc~ is great and all, but it's also really slow.  I
+think we should implement a custom allocator, such as an ~arena~.
+
+Pros:
+- Allows us to /defragment/ memory space to make lookups faster
+- Less calls to ~malloc~
+- Custom pointer type which we can tag effectively
+
+Cons:
+- Memory lookup is a bit more involved; we need to first reference our
+  arena
+** TODO Consider how we select root objects to mark
 * TODO Closures :closures:
-SCHEDULED: <2025-11-17 Mon>
-** TODO Write API
-SCHEDULED: <2025-11-17 Mon>
 [[file:include/obj.h]]
 [[file:src/obj.c]]
 ** TODO Write parser
-SCHEDULED: <2025-11-17 Mon>
 [[file:src/parser.c]]
 * TODO Primitives :primitives:
-SCHEDULED: <2025-11-17 Mon>
 ** TODO Write API
-SCHEDULED: <2025-11-17 Mon>
 [[file:include/obj.h]]
 [[file:src/obj.c]]
 ** TODO Write parser
-SCHEDULED: <2025-11-17 Mon>
 [[file:src/parser.c]]
 * TODO Compute/evaluate
-SCHEDULED: <2025-11-18 Tue>
