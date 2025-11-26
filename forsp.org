@@ -10,8 +10,6 @@
 ** TODO Write API
 [[file:include/obj.h]]
 [[file:src/obj.c]]
-** TODO Write parser
-[[file:src/parser.c]]
 * TODO Compute/evaluate
 * TODO Backlog
 ** TODO Do we need better errors?
