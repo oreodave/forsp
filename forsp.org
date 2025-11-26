@@ -6,10 +6,6 @@
 - Repo: https://github.com/xorvoid/forsp
 - [[~/Code/ThirdParty/forsp/forsp.c]]
 
-* TODO Primitives :primitives:
-** TODO Write API
-[[file:include/obj.h]]
-[[file:src/obj.c]]
 * TODO Compute/evaluate
 * TODO Backlog
 ** TODO Do we need better errors?
