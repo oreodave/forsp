@@ -55,14 +55,18 @@ pair_t *as_pair(obj_t *obj)
 
 obj_t *car(obj_t *obj)
 {
-  if (!IS_PAIR(obj))
+  if (obj == NIL)
+    return NIL;
+  else if (!IS_PAIR(obj))
     FAIL("car: Expected pair, got %p\n", obj);
   return as_pair(obj)->car;
 }
 
 obj_t *cdr(obj_t *obj)
 {
-  if (!IS_PAIR(obj))
+  if (obj == NIL)
+    return NIL;
+  else if (!IS_PAIR(obj))
     FAIL("cdr: Expected pair, got %p\n", obj);
   return as_pair(obj)->cdr;
 }
