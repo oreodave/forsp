@@ -38,6 +38,9 @@ typedef struct
   obj_t *env;
 } state_t;
 
+// State management
+void state_push(state_t *, obj_t *);
+bool state_pop(state_t *, obj_t **);
 void state_delete(state_t *);
 
 // Integers

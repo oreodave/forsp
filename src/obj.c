@@ -311,6 +311,25 @@ obj_t *make_list(state_t *state, obj_t **ptrs, u64 num)
   return root;
 }
 
+void state_push(state_t *state, obj_t *obj)
+{
+  state->stack = cons(state, obj, state->stack);
+}
+
+bool state_pop(state_t *state, obj_t **ret)
+{
+  if (state->stack)
+  {
+    *ret         = car(state->stack);
+    state->stack = cdr(state->stack);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 void state_delete(state_t *state)
 {
   assert(state);
