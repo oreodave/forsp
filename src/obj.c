@@ -74,23 +74,17 @@ obj_t *cdr(obj_t *obj)
   return as_pair(obj)->cdr;
 }
 
-obj_t *env_find(obj_t *env, obj_t *key)
+obj_t *make_primitive(void (*fn)(obj_t **))
 {
-  if (!IS_SYM(key))
-    FAIL("env_find: Expected a symbol for KEY, got (%p)\n", key);
-  for (obj_t *iter = env; iter; iter = cdr(iter))
-  {
-    assert(IS_PAIR(iter));
-    obj_t *item = car(iter);
-    if (car(item) == key)
-      return cdr(item);
-  }
-  return NIL;
+  // Tag the function pointer directly lmao
+  return TAG(fn, PRIMITIVE);
 }
 
-obj_t *env_set(state_t *state, obj_t *env, obj_t *key, obj_t *value)
+primitive_t as_primitive(obj_t *obj)
 {
-  return cons(state, cons(state, key, value), env);
+  assert(IS_PRIMITIVE(obj));
+  void *fn = (void *)UNTAG(obj, PRIMITIVE);
+  return (primitive_t){.function = fn};
 }
 
 obj_t *make_closure(state_t *state, obj_t *body, obj_t *env)
@@ -112,6 +106,25 @@ closure_t *as_closure(obj_t *obj)
   return (closure_t *)UNTAG(obj, CLOSURE);
 }
 
+obj_t *env_find(obj_t *env, obj_t *key)
+{
+  if (!IS_SYM(key))
+    FAIL("env_find: Expected a symbol for KEY, got (%p)\n", key);
+  for (obj_t *iter = env; iter; iter = cdr(iter))
+  {
+    assert(IS_PAIR(iter));
+    obj_t *item = car(iter);
+    if (car(item) == key)
+      return cdr(item);
+  }
+  return NIL;
+}
+
+obj_t *env_set(state_t *state, obj_t *env, obj_t *key, obj_t *value)
+{
+  return cons(state, cons(state, key, value), env);
+}
+
 bool obj_equal(obj_t *a, obj_t *b)
 {
   if (a == NIL && b == NIL)
@@ -130,8 +143,8 @@ bool obj_equal(obj_t *a, obj_t *b)
 
 obj_t *obj_copy(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 5, "obj_copy implemented for 5 types of object.");
-  if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
+  static_assert(NUM_TYPES == 6, "obj_copy implemented for 6 types of object.");
+  if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj) || IS_PRIMITIVE(obj))
   {
     return obj;
   }
@@ -154,8 +167,8 @@ obj_t *obj_copy(state_t *state, obj_t *obj)
 
 obj_t *obj_clone(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 5, "obj_clone implemented for 5 types of object.");
-  if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
+  static_assert(NUM_TYPES == 6, "obj_clone implemented for 6 types of object.");
+  if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj) || IS_PRIMITIVE(obj))
   {
     return obj;
   }
@@ -178,8 +191,8 @@ obj_t *obj_clone(state_t *state, obj_t *obj)
 
 void obj_string(obj_t *obj, vec_t *vec)
 {
-  static_assert(NUM_TYPES == 5,
-                "obj_string implemented for 5 types of object.");
+  static_assert(NUM_TYPES == 6,
+                "obj_string implemented for 6 types of object.");
   if (IS_NIL(obj))
   {
     vec_append(vec, "()", 2);
@@ -225,13 +238,28 @@ void obj_string(obj_t *obj, vec_t *vec)
   else if (IS_CLOSURE(obj))
   {
     vec_append(vec, "CLOS<", 5);
+
     closure_t *closure = as_closure(obj);
     obj_string(closure->body, vec);
     vec_append(vec, ", ", 2);
+
     u64 size = snprintf(NULL, 0, "%p", closure->env);
     char buffer[size + 1];
     sprintf(buffer, "%p", closure->env);
     vec_append(vec, buffer, size);
+
+    vec_append(vec, ">", 1);
+  }
+  else if (IS_PRIMITIVE(obj))
+  {
+    vec_append(vec, "PRIM<", 5);
+
+    primitive_t prim = as_primitive(obj);
+    u64 size         = snprintf(NULL, 0, "%p", prim.function);
+    char buffer[size + 1];
+    sprintf(buffer, "%p", prim.function);
+    vec_append(vec, buffer, size);
+
     vec_append(vec, ">", 1);
   }
   else

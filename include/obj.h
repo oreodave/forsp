@@ -29,10 +29,10 @@ typedef struct
   obj_t *body, *env;
 } closure_t;
 
-// typedef struct
-// {
-//   void (*function)(obj_t *env);
-// } primitive_t;
+typedef struct
+{
+  void (*function)(obj_t *env);
+} primitive_t;
 
 typedef struct
 {
@@ -63,13 +63,17 @@ pair_t *as_pair(obj_t *);
 obj_t *car(obj_t *);
 obj_t *cdr(obj_t *);
 
-// Environments
-obj_t *env_find(obj_t *env, obj_t *key);
-obj_t *env_set(state_t *, obj_t *env, obj_t *key, obj_t *value);
+// Primitives
+obj_t *make_primitive(void (*)(obj_t **));
+primitive_t as_primitive(obj_t *);
 
 // Closures
 obj_t *make_closure(state_t *state, obj_t *body, obj_t *env);
 closure_t *as_closure(obj_t *);
+
+// Environments
+obj_t *env_find(obj_t *env, obj_t *key);
+obj_t *env_set(state_t *, obj_t *env, obj_t *key, obj_t *value);
 
 // General
 bool obj_equal(obj_t *, obj_t *);
