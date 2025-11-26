@@ -57,7 +57,7 @@ obj_t *car(obj_t *);
 obj_t *cdr(obj_t *);
 
 // Primitives
-obj_t *make_primitive(void (*)(obj_t **));
+obj_t *make_primitive(primitive_t);
 primitive_t as_primitive(obj_t *);
 
 // Closures

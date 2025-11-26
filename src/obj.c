@@ -71,7 +71,7 @@ obj_t *cdr(obj_t *obj)
   return as_pair(obj)->cdr;
 }
 
-obj_t *make_primitive(void (*fn)(obj_t **))
+obj_t *make_primitive(primitive_t fn)
 {
   // Tag the function pointer directly lmao
   return TAG(fn, PRIMITIVE);
