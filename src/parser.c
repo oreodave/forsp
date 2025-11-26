@@ -1,15 +1,8 @@
-/* Copyright (C) 2025 Aryadev Chavali
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSITIONE.  See the Unlicense for details.
-
- * You may distribute and modify this code under the terms of the Unlicense,
- * which you should have received a copy of along with this program.  If not,
- * please go to <https://unlicense.org/>.
-
+/* parser.c: Parser implementation
  * Created: 2025-11-16
- * Description:
+ * Author: Aryadev Chavali
+ * License: See end of file
+ * Commentary:
  */
 
 #include <ctype.h>
@@ -250,3 +243,15 @@ vec_t stream_read_all(state_t *state, stream_t *stream)
   }
   return expressions;
 }
+
+/* Copyright (C) 2025 Aryadev Chavali
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSITIONE.  See the Unlicense for details.
+
+ * You may distribute and modify this code under the terms of the Unlicense,
+ * which you should have received a copy of along with this program.  If not,
+ * please go to <https://unlicense.org/>.
+
+ */

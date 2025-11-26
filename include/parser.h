@@ -1,15 +1,8 @@
-/* Copyright (C) 2025 Aryadev Chavali
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
-
- * You may distribute and modify this code under the terms of the Unlicense,
- * which you should have received a copy of along with this program.  If not,
- * please go to <https://unlicense.org/>.
-
+/* parser.h: Parser for files
  * Created: 2025-11-16
- * Description:
+ * Author: Aryadev Chavali
+ * License: See end of file
+ * Commentary:
  */
 
 #ifndef PARSER_H
@@ -40,3 +33,15 @@ bool stream_forward(stream_t *, u64);
 bool stream_backward(stream_t *, u64);
 
 #endif
+
+/* Copyright (C) 2025 Aryadev Chavali
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
+
+ * You may distribute and modify this code under the terms of the Unlicense,
+ * which you should have received a copy of along with this program.  If not,
+ * please go to <https://unlicense.org/>.
+
+ */

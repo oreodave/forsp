@@ -1,15 +1,8 @@
-/* Copyright (C) 2025 Aryadev Chavali
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
-
- * You may distribute and modify this code under the terms of the Unlicense,
- * which you should have received a copy of along with this program.  If not,
- * please go to <https://unlicense.org/>.
-
+/* base.h: Basic definitions
  * Created: 2025-11-15
- * Description:
+ * Author: Aryadev Chavali
+ * License: See end of file
+ * Commentary:
  */
 
 #ifndef BASE_H
@@ -40,3 +33,15 @@ typedef int64_t i64;
   } while (0)
 
 #endif
+
+/* Copyright (C) 2025 Aryadev Chavali
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
+
+ * You may distribute and modify this code under the terms of the Unlicense,
+ * which you should have received a copy of along with this program.  If not,
+ * please go to <https://unlicense.org/>.
+
+ */

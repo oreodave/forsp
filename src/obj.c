@@ -1,15 +1,8 @@
-/* Copyright (C) 2025 Aryadev Chavali
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
-
- * You may distribute and modify this code under the terms of the Unlicense,
- * which you should have received a copy of along with this program.  If not,
- * please go to <https://unlicense.org/>.
-
+/* obj.c: Object API implementation
  * Created: 2025-11-16
- * Description:
+ * Author: Aryadev Chavali
+ * License: See end of file
+ * Commentary:
  */
 
 #include <assert.h>
@@ -354,3 +347,15 @@ void state_delete(state_t *state)
   }
   vec_delete(&state->memory);
 }
+
+/* Copyright (C) 2025 Aryadev Chavali
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the Unlicense for details.
+
+ * You may distribute and modify this code under the terms of the Unlicense,
+ * which you should have received a copy of along with this program.  If not,
+ * please go to <https://unlicense.org/>.
+
+ */
