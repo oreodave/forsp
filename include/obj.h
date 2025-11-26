@@ -24,11 +24,6 @@ typedef struct
 
 typedef struct
 {
-  void (*function)(obj_t *env);
-} primitive_t;
-
-typedef struct
-{
   vec_t memory;
   vec_t symcache;
 
@@ -37,6 +32,8 @@ typedef struct
   // Environment
   obj_t *env;
 } state_t;
+
+typedef void (*primitive_t)(state_t *, obj_t **);
 
 // State management
 void state_push(state_t *, obj_t *);

@@ -80,8 +80,7 @@ obj_t *make_primitive(void (*fn)(obj_t **))
 primitive_t as_primitive(obj_t *obj)
 {
   assert(IS_PRIMITIVE(obj));
-  void *fn = (void *)UNTAG(obj, PRIMITIVE);
-  return (primitive_t){.function = fn};
+  return (primitive_t)UNTAG(obj, PRIMITIVE);
 }
 
 obj_t *make_closure(state_t *state, obj_t *body, obj_t *env)
@@ -252,9 +251,9 @@ void obj_string(obj_t *obj, vec_t *vec)
     vec_append(vec, "PRIM<", 5);
 
     primitive_t prim = as_primitive(obj);
-    u64 size         = snprintf(NULL, 0, "%p", prim.function);
+    u64 size         = snprintf(NULL, 0, "%p", prim);
     char buffer[size + 1];
-    sprintf(buffer, "%p", prim.function);
+    sprintf(buffer, "%p", prim);
     vec_append(vec, buffer, size);
 
     vec_append(vec, ">", 1);
