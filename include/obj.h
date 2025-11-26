@@ -24,10 +24,10 @@ typedef struct
   obj_t *car, *cdr;
 } pair_t;
 
-// typedef struct
-// {
-//   obj_t *body, *env;
-// } closure_t;
+typedef struct
+{
+  obj_t *body, *env;
+} closure_t;
 
 // typedef struct
 // {
@@ -65,7 +65,11 @@ obj_t *cdr(obj_t *);
 
 // Environments
 obj_t *env_find(obj_t *env, obj_t *key);
-obj_t *env_set(state_t *state, obj_t *env, obj_t *key, obj_t *value);
+obj_t *env_set(state_t *, obj_t *env, obj_t *key, obj_t *value);
+
+// Closures
+obj_t *make_closure(state_t *state, obj_t *body, obj_t *env);
+closure_t *as_closure(obj_t *);
 
 // General
 bool obj_equal(obj_t *, obj_t *);

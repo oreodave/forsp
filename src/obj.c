@@ -93,6 +93,25 @@ obj_t *env_set(state_t *state, obj_t *env, obj_t *key, obj_t *value)
   return cons(state, cons(state, key, value), env);
 }
 
+obj_t *make_closure(state_t *state, obj_t *body, obj_t *env)
+{
+  closure_t *clos = calloc(1, sizeof(*clos));
+  clos->body      = body;
+  clos->env       = env;
+  obj_t *obj      = TAG(clos, CLOSURE);
+
+  // Add closure to the list of allocations (for tracking)
+  vec_append(&state->memory, &obj, sizeof(obj));
+
+  return obj;
+}
+
+closure_t *as_closure(obj_t *obj)
+{
+  assert(IS_CLOSURE(obj));
+  return (closure_t *)UNTAG(obj, CLOSURE);
+}
+
 bool obj_equal(obj_t *a, obj_t *b)
 {
   if (a == NIL && b == NIL)
@@ -111,7 +130,7 @@ bool obj_equal(obj_t *a, obj_t *b)
 
 obj_t *obj_copy(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 4, "obj_copy implemented for 4 types of object.");
+  static_assert(NUM_TYPES == 5, "obj_copy implemented for 5 types of object.");
   if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
   {
     return obj;
@@ -121,6 +140,12 @@ obj_t *obj_copy(state_t *state, obj_t *obj)
     // Not a deep clone, so just copy the container
     return cons(state, car(obj), cdr(obj));
   }
+  else if (IS_CLOSURE(obj))
+  {
+    closure_t *clos = as_closure(obj);
+    // Not a deep clone
+    return make_closure(state, clos->body, clos->env);
+  }
   else
   {
     FAIL("obj_copy: unexpected object(%p), not tagged\n", obj);
@@ -129,7 +154,7 @@ obj_t *obj_copy(state_t *state, obj_t *obj)
 
 obj_t *obj_clone(state_t *state, obj_t *obj)
 {
-  static_assert(NUM_TYPES == 4, "obj_clone implemented for 4 types of object.");
+  static_assert(NUM_TYPES == 5, "obj_clone implemented for 5 types of object.");
   if (IS_NIL(obj) || IS_INT(obj) || IS_SYM(obj))
   {
     return obj;
@@ -139,6 +164,12 @@ obj_t *obj_clone(state_t *state, obj_t *obj)
     // Not a deep clone, so just copy the container
     return cons(state, obj_clone(state, car(obj)), obj_clone(state, cdr(obj)));
   }
+  else if (IS_CLOSURE(obj))
+  {
+    closure_t *clos = as_closure(obj);
+    // Deep clone makes no sense here...
+    return make_closure(state, clos->body, clos->env);
+  }
   else
   {
     FAIL("obj_clone: unexpected object(%p), not tagged\n", obj);
@@ -147,8 +178,8 @@ obj_t *obj_clone(state_t *state, obj_t *obj)
 
 void obj_string(obj_t *obj, vec_t *vec)
 {
-  static_assert(NUM_TYPES == 4,
-                "obj_string implemented for 4 types of object.");
+  static_assert(NUM_TYPES == 5,
+                "obj_string implemented for 5 types of object.");
   if (IS_NIL(obj))
   {
     vec_append(vec, "()", 2);
@@ -190,6 +221,18 @@ void obj_string(obj_t *obj, vec_t *vec)
       }
     }
     vec_append(vec, ")", 1);
+  }
+  else if (IS_CLOSURE(obj))
+  {
+    vec_append(vec, "CLOS<", 5);
+    closure_t *closure = as_closure(obj);
+    obj_string(closure->body, vec);
+    vec_append(vec, ", ", 2);
+    u64 size = snprintf(NULL, 0, "%p", closure->env);
+    char buffer[size + 1];
+    sprintf(buffer, "%p", closure->env);
+    vec_append(vec, buffer, size);
+    vec_append(vec, ">", 1);
   }
   else
   {
@@ -261,11 +304,25 @@ void state_delete(state_t *state)
   ptrs = (void *)vec_data(&state->memory);
   for (u64 i = 0; i < state->memory.size / sizeof(*ptrs); ++i)
   {
-    obj_t *o_pair = ptrs[i];
-    assert(IS_PAIR(o_pair));
-    pair_t *pair = as_pair(o_pair);
-    if (pair)
-      free(pair);
+    obj_t *o = ptrs[i];
+
+    if (IS_PAIR(o))
+    {
+      pair_t *pair = as_pair(o);
+      if (pair)
+        free(pair);
+    }
+    else if (IS_CLOSURE(o))
+    {
+      closure_t *closure = as_closure(o);
+      // Body and Env are deleted anyway during this loop, so just kill the
+      // closure
+      free(closure);
+    }
+    else
+    {
+      FAIL("state_delete: Expected a pair or closure, got %p\n", o);
+    }
   }
   vec_delete(&state->memory);
 }
