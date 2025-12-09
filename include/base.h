@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -25,11 +26,12 @@ typedef int64_t i64;
 #define ARRSIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 #define TODO(MSG) (assert(0 && (MSG)))
-#define FAIL(MSG, ...)                          \
-  do                                            \
-  {                                             \
-    fprintf(stderr, "FAIL: " MSG, __VA_ARGS__); \
-    exit(1);                                    \
+#define FAIL(...)                 \
+  do                              \
+  {                               \
+    fprintf(stderr, "FAIL: ");    \
+    fprintf(stderr, __VA_ARGS__); \
+    exit(1);                      \
   } while (0)
 
 #endif
