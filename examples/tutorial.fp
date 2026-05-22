@@ -97,7 +97,7 @@
 
   ($_) $drop
   drop drop drop drop drop
-  
+
   ; Believe it or now, this is ALL of Forsp's syntax and semantics!
 
   ; Forsp has only a small number of built-in function primitives:
@@ -130,15 +130,6 @@
   ;     <<   [$b $a]              |  push the result of "a<<b" (signed left-shift)    | 3 2 <<
   ;     >>   [$b $a]              |  push the result of "a>>b" (signed right-shift)   | 3 2 >>
   ;
-  ;  LOWLEVEL: Dangerous low-level memory unsafe operations
-  ;
-  ;     primitive [args]          |  description                                      | example usage
-  ;     --------------------------|---------------------------------------------------|--------------
-  ;     ptr-state!                | push a pointer to interpreter state memory        | ptr-state!
-  ;     ptr-read!     [$ptr]      | read from "ptr" and push result                   | 1234 ptr-read!
-  ;     ptr-write!    [$val $ptr] | write "val" to "ptr"                              | 1234 42 ptr-write!
-  ;     ptr-to-obj!   [$ptr]      | convert a pointer (number) into an object         | 1234 ptr-to-obj!
-  ;     ptr-from-obj! [$ptr]      | convert an object into a pointer                  | 1234 ptr-from-obj!
 
   ; And that's all the primitives!
   ; From just this, we can implement effectively anything, and we more ease than you'd guess.
@@ -176,7 +167,7 @@
   ($x x) $force
 
   ; And here's an example of usage, forcing a function without naming it:
-  
+
   (dup *) 8 swap force print ; 64
 
   ; We can also define control structures such as if-statements

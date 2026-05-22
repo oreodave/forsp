@@ -92,7 +92,9 @@ Building:
 ./build.sh
 ```
 
-NOTE: Only tested on Mac M1
+NOTE: Tested on:
+- Mac M1
+- x86-64 Linux with gcc 16.1.1
 
 Examples:
 
@@ -104,7 +106,6 @@ Examples:
 ./forsp examples/church-numerals.fp
 ./forsp examples/higher-order-functions.fp
 ./forsp examples/church-numerals.fp
-./forsp examples/low-level.fp
 ./forsp examples/fibonacci-imperative.fp
 ./forsp examples/fibonacci-functional.fp
 ./forsp examples/forsp.fp
