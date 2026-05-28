@@ -23,90 +23,37 @@ Forsp has:
 
 ## Discussion
 
-See blog post for details: [Forsp: A Forth+Lisp Hybrid Lambda Calculus Language](https://xorvoid.com/forsp.html)
+See blog post for details: [Forsp: A Forth+Lisp Hybrid Lambda Calculus
+Language](https://xorvoid.com/forsp.html)
 
 ## Tutorial
 
-The best way to learn Forsp is to [read the tutorial](examples/tutorial.fp)
+The best way to learn Forsp is to [read the
+tutorial](examples/tutorial.fp) along with the other available
+[examples](examples/).
 
-## Recursive Factorial Example
-
-```
-(
-  ($x x)                       $force
-  (force cswap $_ force)       $if
-  ($f $t $c $fn ^f ^t ^c fn)   $endif
-
-  ; Y-Combinator
-  ($f
-    ($x (^x x) f)
-    ($x (^x x) f)
-    force
-  ) $Y
-
-  ; rec: syntax sugar for applying the Y-Combinator
-  ($g (^g Y)) $rec
-
-  ; factorial
-  ($self $n
-    ^if (^n 0 eq 1)
-      (^n 1 - self ^n *)
-    endif
-  ) rec $factorial
-
-  5 factorial print
-)
-```
-
-## Self-implementation (compute() and eval() core functions)
-
-```
-  ; compute [$comp $stack $env -> $stack]
-  ($compute $eval
-    ^if (dup is-nil) (rot $_ $_) ( ; false case: return $stack
-      stack-pop
-      ^if (dup 'quote eq)
-        ($_ stack-pop rot swap stack-push swap ^eval compute)
-        (swap $comp eval ^comp ^eval compute) endif
-    ) endif
-  ) rec $compute
-
-  ; eval: [$expr $stack $env -> $stack $env]
-  ($eval
-    ^if (dup is-atom) (
-      over2 swap env-find dup $callable
-      ^if (dup is-closure) (swap $stack cdr unpack-closure ^stack swap ^eval compute)
-      (^if (dup is-clos)   (force)
-                           (stack-push)  endif) endif)
-    (^if (dup is-list)
-      (over2 swap make-closure stack-push)
-      (stack-push) endif) endif
-  ) rec $eval
-```
+## Requirements
+- C compiler that can compile C23 (tested: gcc 16.1.1 20260430 clang
+  22.1.5)
+- Make (test: GNU Make, bmake)
 
 ## Building and Demo
 
 Building:
-
 ```
-./build.sh
+make
 ```
 
 NOTE: Tested on:
 - Mac M1
 - x86-64 Linux with gcc 16.1.1
 
-Examples:
-
+Running:
 ```
-./forsp examples/tutorial.fp
-./forsp examples/demo.fp
-./forsp examples/factorial.fp
-./forsp examples/currying.fp
-./forsp examples/church-numerals.fp
-./forsp examples/higher-order-functions.fp
-./forsp examples/church-numerals.fp
-./forsp examples/fibonacci-imperative.fp
-./forsp examples/fibonacci-functional.fp
-./forsp examples/forsp.fp
+make run ARGS=<...>
+```
+
+Examples:
+```
+make examples
 ```

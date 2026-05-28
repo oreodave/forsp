@@ -3,23 +3,23 @@ CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Werror -ggdb -Isrc
 LDFLAGS=
 OUT=forsp
 
-CODE=$(shell find src/ -name "*.c")
+CODE=src/tagging.c src/primitives.c src/stack.c src/environment.c src/eval.c src/reader.c src/print.c src/main.c
 EXAMPLES=examples/church-numerals.fp examples/currying.fp examples/demo.fp \
 		examples/factorial.fp examples/fibonacci-functional.fp examples/forsp.fp examples/higher-order-functions.fp examples/tutorial.fp
 
 $(OUT): $(CODE)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $(CODE)
 
-ARGS=""
+ARGS=
 .PHONY: run
 run: $(OUT)
-	./$^
+	./$(OUT) $(ARGS)
 
 .PHONY: examples
 examples: $(OUT)
 	for example in $(EXAMPLES); do \
 		echo "<$$example>"; \
-		./$^ $$example; \
+		./$(OUT) $$example; \
 	done
 
 scratch.fp:
@@ -27,7 +27,7 @@ scratch.fp:
 
 .PHONY: scratch
 scratch: $(OUT) scratch.fp
-	./$^
+	./$(OUT) scratch.fp
 
 .PHONY: clean
 clean:

@@ -59,7 +59,7 @@
   ; Forsp also has function abstraction. They are simply () parenthesis grouping.
 
   ($x ^x ^x *)
-  stack print  ; (CLOSURE<(quote x pop quote x push quote x push *), 0x600001c26d60>)
+  stack print  ; (CLOSURE<(quote x pop quote x push quote x push *), 0x...>)
 
   ; What's this scary value on the stack now? When we build a function with (), it forms a lexical
   ; closure around the current environment. If you prefer, you can just think of "CLOSURE"
