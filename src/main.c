@@ -47,14 +47,13 @@ void setup(const char *input_path)
   env        = env_define_prim(env, "tag", &prim_tag);
   env        = env_define_prim(env, "read", &prim_read);
   env        = env_define_prim(env, "print", &prim_print);
-
-  env = env_define_prim(env, "stack", &prim_stack);
-  env = env_define_prim(env, "env", &prim_env);
-  env = env_define_prim(env, "-", &prim_sub);
-  env = env_define_prim(env, "*", &prim_mul);
-  env = env_define_prim(env, "nand", &prim_nand);
-  env = env_define_prim(env, "<<", &prim_lsh);
-  env = env_define_prim(env, ">>", &prim_rsh);
+  env        = env_define_prim(env, "stack", &prim_stack);
+  env        = env_define_prim(env, "env", &prim_env);
+  env        = env_define_prim(env, "-", &prim_sub);
+  env        = env_define_prim(env, "*", &prim_mul);
+  env        = env_define_prim(env, "nand", &prim_nand);
+  env        = env_define_prim(env, "<<", &prim_lsh);
+  env        = env_define_prim(env, ">>", &prim_rsh);
 
   state->env = env;
 }
