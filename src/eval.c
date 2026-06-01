@@ -6,8 +6,6 @@
 
 #include "common.h"
 
-void eval(obj_t *expr, obj_t **env);
-
 void compute(obj_t *comp, obj_t *env)
 {
 #if DEBUG > 1
@@ -20,50 +18,46 @@ void compute(obj_t *comp, obj_t *env)
     obj_t *cmd = car(comp);
     comp       = cdr(comp);
 
-    if (cmd == state->atom_quote)
+    switch (get_tag(cmd))
     {
-      if (comp == NULL)
-        FAIL("Expected data following a quote form");
-      push(car(comp));
-      comp = cdr(comp);
-      continue;
-    }
+    case TAG_ATOM:
+      // quote is the one special operator.
+      if (cmd == state->atom_quote)
+      {
+        if (comp == NULL)
+          FAIL("Expected data following a quote form");
+        push(car(comp));
+        comp = cdr(comp);
+        continue;
+      }
 
-    eval(cmd, &env);
-  }
-}
-
-void eval(obj_t *expr, obj_t **env)
-{
-#if DEBUG > 1
-  printf("eval: ");
-  print(expr);
-#endif
-
-  if (IS_ATOM(expr))
-  {
-    obj_t *val = env_find(*env, expr);
-    if (IS_CLOS(val))
-    {
-      auto clos = as_clos(val);
-      compute(clos->body, clos->env);
+      // Otherwise perform a lookup and "call" the value.
+      obj_t *val = env_find(env, cmd);
+      if (IS_CLOS(val))
+      {
+        auto clos = as_clos(val);
+        compute(clos->body, clos->env);
+      }
+      else if (IS_PRIM(val))
+      {
+        as_prim(val)(&env);
+      }
+      else
+      {
+        push(val);
+      }
+      break;
+    case TAG_NIL:
+    case TAG_PAIR:
+      push(make_clos(cmd, env));
+      break;
+    case TAG_NUM:
+    case TAG_CLOS:
+    case TAG_PRIM:
+    default:
+      push(cmd);
+      break;
     }
-    else if (IS_PRIM(val))
-    {
-      as_prim(val)(env);
-    }
-    else
-    {
-      push(val);
-    }
-  }
-  else if (IS_NIL(expr) || IS_PAIR(expr))
-  {
-    push(make_clos(expr, *env));
-  }
-  else
-  {
-    push(expr);
   }
 }
 
