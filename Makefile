@@ -17,6 +17,7 @@ run: $(OUT)
 
 .PHONY: examples
 examples: $(OUT)
+	set -e; \
 	for example in $(EXAMPLES); do \
 		echo "<$$example>"; \
 		./$(OUT) $$example; \
