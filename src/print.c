@@ -31,13 +31,11 @@ void print_list_tail(obj_t *obj)
 
 void print_recurse(obj_t *obj)
 {
-  if (obj == NULL)
+  switch (get_tag(obj))
   {
+  case TAG_NIL:
     printf("()");
-    return;
-  }
-  switch (GET_TAG(obj))
-  {
+    break;
   case TAG_ATOM:
     printf("%s", as_atom(obj));
     break;
