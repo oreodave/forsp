@@ -34,7 +34,7 @@
 
   ; each [$fn $list]
   ($fn (fn '()) map drop) $each
-  
+
   ; implementation
   (0 1 ($self $a $b $n
     ^if (^n 0 eq) ^b (
@@ -45,6 +45,4 @@
   10 1 range
   ^fibonacci map
   ^print each
-
-
 )

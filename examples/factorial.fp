@@ -21,18 +21,5 @@
     endif
   ) rec $factorial
 
-  'factorial-recursive print
-  5 factorial print
-
-  ; alternative tail recursive approach
-  ($self $n $acc
-    ^if (^n 0 eq)
-      (acc)
-      (^n acc * ^n 1 - self)
-    endif
-  ) rec $--factorial
-  ($x 1 x --factorial) $factorial
-
-  'factorial-tail-recursive print
   5 factorial print
 )
