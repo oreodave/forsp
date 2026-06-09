@@ -4,3 +4,4 @@ forsp
 *.dSYM/
 TAGS
 scratch.fp
+perf-results/
