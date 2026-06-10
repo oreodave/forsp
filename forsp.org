@@ -1,316 +1,137 @@
-* TODO Rework Forsp
-This subtree manages the refactor of the Forsp language where we
-replace certain linked list oriented operations of the language to
-favour dynamic arrays instead.
-** TODO Design a Stack based data structure to replace Pairs
-Pairs are a very natural concept within Forsp.  However, I think we
-can get away with replacing them in favour of a slightly more natural
-data structure: dynamically sized stacks, backed by slab allocated
-arrays.
-
-Why?  I think having to run all across the heap for linked lists is a
-real pain.  As program sizes get larger, this only becomes more of an
-issue.  In comparison, a dynamically sized stack at least allows us to
-iterate a bit more seamlessly through a first depth level of
-instructions.
-
-Also consider the universal stack, which is used for function
-parameters and returns.  A generalisable stack which user code can
-generate and utilise would fit naturally here.
-*** TODO Tagged pointer
-We need two data types:
-- ~stack~ which has ownership of the underlying data.
-- ~stack_view~ which doesn't have ownership.
-
-NIL should map to an empty stack.
-*** TODO User API
-Normal object based API, same as any other:
-- ~stack-push~ takes an element from the universal stack, and a stack
-  object, and pushes that element onto that stack object.  Stack
-  object is preserved.
-- ~stack-pop~ takes a stack object and pops an element off it, pushing
-  that element onto the universal stack.  Stack object is preserved
-  behind the freshly pushed item.
-- ~stack-length~ takes a stack object and pushes the length of it onto
-  the universal stack.
-*** WAIT Stack frames
-I'd really like to have some kind of notion of ~stack frames~ to
-partition function calling.  Essentially, one can construct a stack
-and swap it with the current calling stack.  The idea is that future
-calls utilising the universal stack will instead push/pop on this
-allocated one instead.
-
-At the very least, it should make constructing toy stacks really easy.
-Consider the task of creating a stack with 3 elements:
-#+begin_src forsp
-(
-  nil 3 stack-push 2 stack-push 1 stack-push print
-)
+* TODO Better allocation
+#+begin_src sh :results output :session nil :async
+grep -rn "malloc\|realloc" src/
 #+end_src
 
-With the frame based API:
-#+begin_src forsp
-(
-  nil push-frame
-      3 2 1
-  pop-frame
-  print
-)
-#+end_src
+#+RESULTS:
+: src/main.c:19:  char *mem = malloc(*size + 1);
+: src/tagging.c:18:  char *atom_str = malloc(len + 1);
+: src/tagging.c:33:  pair_t *pair = malloc(sizeof(*pair));
+: src/tagging.c:40:  clos_t *clos = malloc(sizeof(*clos));
+: src/tagging.c:113:    vec->items    = realloc(vec->items, sizeof(item) * vec->capacity);
+: src/tagging.c:126:    vec->items    = realloc(vec->items, sizeof(*items) * vec->capacity);
 
-... where essentially:
-- ~push-frame~: given current running stack A, and stack object B on
-  top of stack A: push A onto a /frame stack/, make B the new running
-  stack
-- ~pop-frame~: given current running stack B, and A as the top of the
-  frame stack: pop A off the frame stack, make A the current running
-  stack, push B onto the current running stack.
+We just allocate willy nilly really.  The only instance which is
+somewhat acceptable is [[file:src/main.c::char *mem = malloc(*size +
+1);][src/main.c]] which is reading all source code in one go.  Atom's
+are also somewhat acceptable as ~make_atom~ is only called when
+~intern~ is called, which caches atoms anyway.
 
-Environments are treated the same across frame borders:
-#+begin_src forsp
-(
-  nil push-frame
-      (2 *) $double
-      3 2 1
-  pop-frame
-  print
-  3 double print
-)
-#+end_src
-** TODO Redesign reader
-The reader should, instead of returning ~obj_t*~, push parsed ~obj_t*~
-onto a stack it takes as parameter.
+By the way, memory is only cleaned up at program exit.
 
-There are a few benefits to this:
-- No need for a /read stack/ since we can just push the relevant
-  pieces directly onto the parameterised stack.
-- ~read~'s return value is free to be used as an error value of some
-  kind, which we can propagate up the stack for better errors.
+** Observation on heap allocated objects
+Pairs and Closures are the other two things we allocate, and they
+happen to be identical in size (two pointers).
 
-Furthermore, any instances of ~()~ should use stacks instead of linked
-lists.  This will be crucial for later redesigns.
-** WAIT Redesign environments
-This is a hard one - environments as linked lists make perfect sense
-for closure construction (bind the current linked list as-is).  It's a
-shame, but this may have to wait till IR phase.
-** TODO Redesign closures and compute
-Instead of being linked lists of instructions, make closures
-essentially stacks of instructions.  ~closures~ simply store a
-sequence of instructions with their initial environment when
-constructed, so a stack makes obvious sense here.
+So if we create our own allocator, they're the only two objects we'd
+need to be concerned about.  Naturally, as they're equivalently sized,
+we don't need to care about padding our allocations out at all, or
+having to tag them somehow in the allocator.
 
-Since ~compute~ essentially linearly iterates through a linked list of
-instructions, this is no different from running linearly through a
-stack of instructions.  Furthermore, as ~read~ already very helpfully
-produces a stack of instructions to interpret, this fits naturally.
-* TODO Implement a IR phase
-This subtree manages the construction and implementation of an IR
-phase within the Forsp interpreter.
+A standard old dynamic bump allocator would do the trick here, if we
+didn't need to maintain pointers.  So arenas would be the next natural
+fit.  However, even with an arena we're still leaving garbage around.
+We need a way of collecting it, so we don't run out of memory for
+really large programs.
+** TODO Cheney's algorithm
+Cheney's algorithm describes a method of allocation and collecting.
+We maintain the heap as is, and when it overfills we enter
+~collection~.  To collect, we consider the heap as two portions:
+~from~ and ~to~.  ~from~ is where our objects currently lie, and ~to~
+will be where we stick em.
 
-The big idea behind a IR phase is to make ~compute~ more performant.
-We'll compile our super high level Forsp code into a sequence of
-simpler instructions, which on their own should be super easy to run
-through at mach speed.
+We consider ~to~ to be a form of bump allocator so we'll use
+~bump_ptr~ to represent the bump index.
 
-The IR standard we define, along with the analogous ~compute~,
-describe a VM.  A few instrinsics in this VM should map to the special
-operators of the higher level Forsp language (quote ('), pop ($), push
-(^)).  In a sense, this IR will represent the /kernel/ of the Forsp
-language itself.
+*** Forwarding pointers
+We need a way to say that a given allocation has actually been moved
+over to ~to~ space; this will allow us to stop the later BFS in cases
+where memory has already been copied to ~to~ space.
 
-This is going to require some level of language redesign, and will
-have multiple components.
-** TODO Design IR
-We'll first consider the ~compute~ function to motivate the
-construction of certain instructions, then consider data types.
-*** Data types
-**** Closure rework
-Instead of /linked lists/ being the method by which we create
-closures, let's use dynamic arrays of IR instructions.  This does add
-some overhead to small closures, but in trade we get much faster
-compute times since we're iterating linearly through it.  Also the
-Forth like components of Forsp (stack based computation) fall quite
-naturally into array based compute.
+We do this by introducing a "FORWARD_POINTER" object type within the
+tagged pointer model.  It essentially just masks a pointer into ~to~
+space.
 
-This also unifies the notion of the runtime stack (which we can
-implement trivially as a dynamic array) with the actual code we're
-interpreting; if we introduce the right primitives, we could generate
-code at runtime on the /compute stack/ that the interpreter will run
-straight away.
-**** Pair -> Stack rework
-Since pairs aren't the fundamental /block making/ data type (instead
-we're now using arrays), I want to extricate them as the main
-container type as well.  Instead, let's use dynamic arrays as stacks!
+This forwarding pointer object is stored in the first object slot of
+any given allocation (pair or closure).  So to check if an object has
+already been moved we just need to check the tag on the first object
+of an allocation.
 
-Essentially we trade ~cons,car,cdr~ for the following:
-- ~push(T, S)~: push the value T onto the stack S
-- ~top(S)~: get the topmost value of stack S
-- ~rest(S)~: get a view of the stack S excluding the topmost value
+We'll also want functions to return the pointer to the forwarded cell
+(i.e. the copied object) given an object pointer.
+*** Evacuate (move from ~from~ to ~to~)
+Evacuate is a function that drives this entire interaction.  Given a
+pointer ~p~, it works roughly like this:
+- copy contents of ~p~ over to ~to~ space, incrementing ~bump_ptr~.
+- replace first object slot at ~p~ with a forwarding pointer to the
+  new location in ~to~ space.
 
-To get back some of the niceties of linked lists we'll use /stack
-views/ along with /copy on write/ to make this work:
-- ~rest(S)~ generates a /stack view/ which doesn't copy the underlying
-  data, instead constructing a new array header with a pointer to the
-  same data as S itself.  ~top~ works just fine with this.
-- ~push(T, S)~ will copy iff S is a stack view, and mutate if S is a
-  normal stack.
+So, when we look at ~p~ currently, the first field should essentially
+tell us whether that pointer has been migrated over to ~to~ space or
+not.
+*** Core algorithm
+**** The initial sweep
+We start by evacuating all the roots.  In Forsp our main roots will be
+the ~stack~ and the ~comp~/~env~ pair we get in a ~compute~ run.  This
+should leave us with a few forwarding pointers in ~from~ space, and a
+couple allocations to ~to~ space.
+**** The BFS
+Then, we scan through all objects in ~to~ space to move all the still
+accessible memory located in ~from~ space into ~to~ space.  We do this
+by maintaining a ~scan_ptr~ which starts at the beginning of ~to~
+space.  By virtue of the initial sweep, we must have /something/
+there:
+1) Look at the cells of the object at ~scan_ptr~
+   - If the cells are currently in ~from~ space, evacuate them,
+     incrementing ~bump_ptr~ accordingly.
+   - If they're already present in ~to~ space, or they're an
+     immediate, we can happily skip it.
+2) Bump ~scan_ptr~ to the next object in to space (16 bytes).
+3) Repeat (1) until ~scan_ptr >= bump_ptr~
 
-We type stacks as so:
-- ~[]~ represents the empty stack
-- ~[T]~ represents a stack with one item (type T)
-- ~[...U T]~ represents a stack with the topmost item of type T, and
-  the rest encoded with a container type U
+Once we escape the loop, we must have scanned everything accessible in
+~to~ space, which by virtue must be everything accessible in the
+program.
+*** Root maintenance
+We enter a new ~compute~ call every time we call a closure, which uses
+its own ~comp~ and ~env~.  If we need to collect during ~compute~,
+these pointers will most likely point to garbage.  This is very bad.
 
-So, for example, a stack with an integer topmost, then a symbol, then
-an empty stack, would look like so ~[[] symbol integer]~.
-*** Instructions
-We want our IR to essentially make the ~compute~ function easier.
-Let's break down the current implementation of the ~compute~ function:
-- Given a block of code ~xs~ (currently implemented as a linked list),
-  we iterate through every element ~x_n~
-- Each element ~x_n~ is distinguished by tag:
-  1) If ~x_n~ is an atom then:
-     1) If it's a quote, push ~x_{n+1}~ literally, and move to ~x_{n+2}~
-     2) Otherwise, lookup that atom in the current environment to get
-        ~y~, then:
-        1) If ~y~ is a closure or primitive, call it
-        2) Otherwise, push whatever ~y~ is on the stack
-  2) If ~x_n~ is a linked list (NIL or otherwise), make a closure out
-     of it, binding the current environment
-  3) If ~x_n~ is any other type (number, closure, primitive), push it
-     onto the stack
+To make the GC aware of the fact that we want updates on these
+pointers, we need to maintain a ~root~ stack that stores pointers to
+the things we want updated.  Essentially a stack of ~obj_t **~.
 
-We'll break down these paths and consider relevant instructions we'd
-need in our IR to represent them.
-**** 1 - Atoms
-***** 1.1: Quoted atoms
-This only occurs when one of the special operators is used, as the
-reader compiles them into multiple operations:
-- ~'x~ where ~x~ is an atom compiles to ~quote x~
-- ~$x~ where ~x~ is an atom compiles to ~quote x pop~
-  - This takes a value off the stack and binds it to the symbol ~x~ in
-    the current environment.  ~pop~ is implemented as a primitive.
-- ~^x~ where ~x~ is an atom compiles to ~quote x push~
-  - This looks up ~x~ in the current environment and pushes the
-    relevant value onto the stack.  ~push~ is implemented as a
-    primitive.
+Then, during the initial sweep when we're evacuating the roots, we can
+both scan this root stack to do so /and/ update the roots with the new
+pointers over in ~to~ space.
+* TODO Big integers
+We can only compute $18!$.  Unacceptable.  It's due to only having 56
+bit integers.  We could get away with bumping this up to 63 bits by
+making ~TAG_INT~ unique, but I think that's a bandaid.
 
-See how they all manipulate an atom?  We can make this specific by
-making them into exact instructions:
-- ~'x~ maps to ~PUSH_SYMBOL(x)~.  This symbol is pushed onto the stack
-  as is.
-- ~$x~ maps to ~BIND(x)~ where ~BIND~ pops a value already on the
-  stack
-- ~^x~ maps to ~LOOKUP(x)~ where ~x~ should already have an associated
-  value in the environment.  The associated value is pushed onto the
-  stack.
-***** 1.2 Atom calling
-This is a core part of the Forsp language: raw unquoted symbols
-compile to function calls.  Given [[*1.1: Quoted atoms][1.1]] has the
-idea of ~LOOKUP(x)~, we can either go for:
-- ~LOOKUP(x)~ then ~CALL~ which:
-  - Pushes the associated value of X onto the stack
-  - ~CALL~ then pops that value and performs a "call" depending on the
-    type of the value (closures, primitives -> compute, otherwise ->
-    push value)
-- ~CALL(X)~ which embeds the symbol into the call directly.
+What we really need is Big Integers.  Allocated on the heap, they
+allow us to store and compute with arbitrarily wide integers.
+* TODO Floating point numbers
+Obvious.
+* TODO Replace recursion with queues in ~compute~
+On first call to ~compute~, you pass an expression and an environment.
 
-Given ~BIND(x)~ expects values on the stack, it might be better to
-have a 0-arity ~CALL~ (i.e. the former approach).  Furthermore, this
-allows us to extract away the retrieval mechanisms for every type of
-callable (see [[*3 - Normal pushes][3]]) so ~CALL~ is purely about
-actually doing a call.
+The only time we recur is when dealing with closures.  Instead of
+arranging machine stack-based recursion, why not setup a queue of
+these closures (with the parameters being the first member) and yield
+out of this queue?
+* TODO Consider compiling to x86_64 directly
+* Opencode
+Got qwen3.6 to make a rough list of possible optimisations we could
+do.
 
-**** 2 - Blocks of Code
-When a linked list (which is the current notion for "block of code")
-is encountered, we generate a closure and push the associated value
-onto the stack.  Here's where the [[*Redesign reader][reader
-redesign]] (which see) will be really important - instead of leaving
-it to ~compute~ time to generate the closure, we can do it ahead of
-time at the ~read~.
-
-The main things to consider for IR design is:
-- ~MAKE_CLOSURE(idx)~ where ~idx~ is some way of pointing to the raw
-  code pertaining to the closure within the IR, pushing a closure
-  object onto the stack.
-  - ~MAKE_CLOSURE~ also needs to bind the current environment and
-    store it into the pushed closure object.
-**** 3 - Normal pushes
-When a general object that isn't already caught by the previous
-conditions is encountered, push it onto the stack.  For the sake of
-analysis I think it's better if we have unique PUSH constructors for
-each type:
-- ~PUSH_NUM(X)~ where X is a number
-- ~PUSH_CLOSURE(X)~ where X is a closure object (unlikely to be used
-  in first pass stuff)
-- ~PUSH_PRIMITIVE(X)~ where X is a primitive
-**** Primitives
-Given how small the number of primitives required for self
-implementation actually are, we may as well embed them into IR itself
-directly, which should allow the reader to elide a bunch of
-~PUSH_PRIMITIVE(x) CALL~ instances.
-**** Summary
-So in total we have the following extra instructions:
-|----------------+--------------------+-------------------|
-| Name           | Embedded Arguments | Stack effect      |
-|----------------+--------------------+-------------------|
-| PUSH_NUM       | (x: int)           | (-- int)          |
-| PUSH_SYMBOL    | (s: symbol)        | (-- symbol)       |
-| PUSH_CLOSURE   | (c: closure)       | (-- closure)      |
-| PUSH_PRIMITIVE | (p: primitive)     | (-- primitive)    |
-| BIND           | (s: symbol)        | (any --)          |
-| LOOKUP         | (s: symbol)        | (-- any)          |
-| CALL           | -                  | (callable -- any) |
-| MAKE_CLOSURE   | (id: TBD)          | (-- closure)      |
-|----------------+--------------------+-------------------|
-
-along with the primitives:
-|-------+---------------------------|
-| Name  | Stack Effect              |
-|-------+---------------------------|
-| EQ    | (any any     -- boolean)  |
-| PUSH  | (T U         -- [U T])    |
-| FIRST | ([...U T]    -- T)        |
-| REST  | ([...U T]    -- [...U])   |
-| CSWAP | (U T boolean -- (T or U)) |
-| TAG   | (any         -- int)      |
-| SUB   | (int int     -- int)      |
-| MUL   | (int int     -- int)      |
-| NAND  | (int int     -- int)      |
-| LSH   | (int int     -- int)      |
-| RSH   | (int int     -- int)      |
-| READ  | (            -- any)      |
-| PRINT | (any         --)          |
-|-------+---------------------------|
-** TODO Redesign reader
-Our reader now needs to emit IR instead of an AST that we then
-evaluate.  We can still stick to the recursive nature of ~read~.
-
-One big thing to consider is that we likely want to compile blocks of
-code ahead of time.
-** TODO Stack effect/Type checking
-Forsp currently lacks stack effect analysis and type checking.  It's
-not needed for a minimalist implementation (hence why it's not present
-in the original), but these are several reasons this would be a good
-idea:
-- having a formal understanding of the exact effects (stack effects,
-  along with type pre-requisites) should help with catching a class of
-  reasoning/soundness errors
-- will help with optimisation passes
-- good exercise in verifying the core kernel of the language itself
-
-How do we notate stack effects of callables?  We'll copy this from
-Forth.
-
-(I_1...I_N -- O_1...O_N) where:
-- I_{n} and O_{n} are types.
-- I_{n} represent the input types from the stack.
-- O_{n} represent the output types following execution.
-- X_N is the top of the stack.
-
-We can use ~...~ to notate the "rest of the stack" in cases where we
-need to be
-** TODO Consider optimisation
-This is not an easily measurable task, and will likely be on-going
-following the completion of the initial IR redesign.  But it's a
-good question to consider as part of our initial design.
+|---------------------------------+--------------------------------------------------------|
+| Optimization                    | Impact                                                 |
+|---------------------------------+--------------------------------------------------------|
+| Allocator                       | High — eliminates malloc overhead for most allocations |
+| Hash table for interning        | High — O(1) atom lookup during parsing                 |
+| Environment lookup optimization | High — O(1) or O(log n) variable lookup                |
+| Iterative print                 | Low — only matters for very deep structures            |
+| Add REPL/multi-expression       | Medium — usability                                     |
+| Add + primitive                 | Low — convenience                                      |
+|---------------------------------+--------------------------------------------------------|
