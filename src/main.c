@@ -5,6 +5,8 @@
  */
 
 #include "common.h"
+#include "compute.h"
+#include "state.h"
 
 static char *load_file(const char *filename, size_t *const size)
 {
@@ -41,6 +43,9 @@ void setup(const char *input_path)
   state_env_setup();
 }
 
+// Allocate the state variable in this code unit.
+state_t state[1];
+
 int main(int argc, char *argv[])
 {
   if (argc != 2)
@@ -58,12 +63,13 @@ int main(int argc, char *argv[])
 
 /* Copyright (c) 2024 Anthony Bonkoski
  * Copyright (C) 2026 Aryadev Chavali
- *
+
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the MIT License for details.
- *
+
  * You may distribute and modify this code under the terms of the MIT License,
  * which you should have received a copy of along with this program.  If not,
  * please go to <https://opensource.org/license/MIT>.
+
  */
