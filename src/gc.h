@@ -20,9 +20,7 @@
 
 typedef struct
 {
-  // FIXME: We're restricted to 32 byte memory space because of this.  Might be
-  // worth rearranging that later.
-  u32 length, capacity;
+  u64 length, capacity;
   pair_t data[];
 } page_t;
 
