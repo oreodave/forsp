@@ -21,7 +21,7 @@
 typedef struct
 {
   u64 length, capacity;
-  pair_t data[];
+  obj_t *data[];
 } page_t;
 
 /** Allocate a new `page_t` on the heap.
@@ -29,11 +29,12 @@ typedef struct
  */
 page_t *page_make();
 
-/** Allocate a pair in a given page, returning a pointer to the allocation.
+/** Allocate a pair of objects in a given page, returning a pointer to the
+ * allocation.
  * Will return NIL if there is not enough space within the page to allocate that
  * pair.
  */
-pair_t *page_alloc(page_t *);
+obj_t **page_alloc(page_t *);
 
 /** Resize a page to the given new capacity.
  * Note that this is destructive as the new page may not have the same addresses
@@ -55,11 +56,11 @@ void gc_stop(gc_t *);
 /** Allocate a new object pair in the current GC structure.
  * May collect if there is not enough space in the current page.
  */
-pair_t *gc_alloc(gc_t *);
+obj_t **gc_alloc(gc_t *);
 
 /** Perform a collection as per Cheney's algorithm in the current GC structure.
  */
-void gc_collect();
+void gc_collect(gc_t *);
 
 #endif
 

@@ -8,28 +8,35 @@
 
 page_t *page_make()
 {
+  // FIXME: assuming pair-likes are the only allocated type.
   page_t *page =
-      calloc(1, sizeof(*page) + (sizeof(*page->data) * PAGE_INIT_CAPACITY));
+      calloc(1, sizeof(*page) + (sizeof(*page->data) * PAGE_INIT_CAPACITY * 2));
   page->length   = 0;
   page->capacity = PAGE_INIT_CAPACITY;
   return page;
 }
 
-pair_t *page_alloc(page_t *page)
+obj_t **page_alloc(page_t *page)
 {
   if (page->capacity - page->length == 0)
   {
     return NULL;
   }
-  return &page->data[page->length++];
+
+  // FIXME: assuming pair-likes are the only allocated type.
+  obj_t **items = &page->data[page->length * 2];
+  page->length += 2;
+  return items;
 }
 
 bool page_resize(page_t **page, u64 new_cap)
 {
   if (!page || !*page || page[0]->capacity >= new_cap)
     return false;
-  page[0] =
-      realloc(page[0], sizeof(*page[0]) + (sizeof(*page[0]->data) * new_cap));
+  // FIXME: assuming pair-likes are the only allocated type.
+  page[0] = realloc(page[0],
+                    sizeof(*page[0]) + (sizeof(*page[0]->data) * new_cap * 2));
+  page[0]->capacity = new_cap;
   return true;
 }
 
@@ -45,13 +52,18 @@ void gc_stop(gc_t *gc)
   free(gc->current);
 }
 
-pair_t *gc_alloc(gc_t *gc)
+obj_t **as_alloc(obj_t *obj)
 {
-  pair_t *pair = page_alloc(gc->current);
+  return (obj_t **)UNTAG(obj);
+}
+
+obj_t **gc_alloc(gc_t *gc)
+{
+  obj_t **pair = page_alloc(gc->current);
   while (!pair)
   {
     // Collect and try again.
-    gc_collect();
+    gc_collect(gc);
     pair = page_alloc(gc->current);
 
     if (!pair)
@@ -62,13 +74,24 @@ pair_t *gc_alloc(gc_t *gc)
     }
   }
 
+  // Ensure the capacity of the backup page is at least the capacity of the
+  // current page
+  if (gc->backup->capacity < gc->current->capacity)
+  {
+    page_resize(&gc->backup, gc->current->capacity);
+  }
+
   return pair;
 }
 
-void gc_collect()
+void gc_collect(gc_t *gc)
 {
   // TODO: complete algorithm
+  (void)gc;
   FAIL("Not done");
+
+  // Swap current page with backup page once evacuation is over.
+  // Ensure backup page is completely reset with regards to length.
 }
 
 /* Copyright (C) 2026 Aryadev Chavali
