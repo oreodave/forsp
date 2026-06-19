@@ -22,10 +22,10 @@ typedef enum Tag
 
 typedef struct obj obj_t;
 
-#define TAG_CANON(X, T)   ((obj_t *)(((u64)(X) << 8) | (T)))
+#define TAG_CANON(X, T)   ((obj_t *)(((uintptr_t)(X) << 8) | (T)))
 #define TAG_TYPE(X, TYPE) (TAG_CANON(X, TAG_##TYPE))
-#define UNTAG(X)          ((u64)(X) >> 8)
-#define GET_TAG(X)        ((u64)(X) & 0xFF)
+#define UNTAG(X)          ((uintptr_t)(X) >> 8)
+#define GET_TAG(X)        ((uintptr_t)(X) & 0xFF)
 
 #define IS_NIL(obj)  (GET_TAG(obj) == TAG_NIL)
 #define IS_ATOM(obj) (GET_TAG(obj) == TAG_ATOM)
@@ -34,6 +34,8 @@ typedef struct obj obj_t;
 #define IS_CLOS(obj) (GET_TAG(obj) == TAG_CLOS)
 #define IS_PRIM(obj) (GET_TAG(obj) == TAG_PRIM)
 #define IS_FWD(obj)  (GET_TAG(obj) == TAG_FWD)
+
+#define IS_ALLOC(OBJ) (IS_PAIR(OBJ) || IS_CLOS(OBJ))
 
 typedef struct pair
 {
