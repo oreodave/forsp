@@ -33,6 +33,44 @@ bool page_resize(page_t **page, u64 new_cap)
   return true;
 }
 
+void gc_init(gc_t *gc)
+{
+  gc->backup  = page_make();
+  gc->current = page_make();
+}
+
+void gc_stop(gc_t *gc)
+{
+  free(gc->backup);
+  free(gc->current);
+}
+
+pair_t *gc_alloc(gc_t *gc)
+{
+  pair_t *pair = page_alloc(gc->current);
+  while (!pair)
+  {
+    // Collect and try again.
+    gc_collect();
+    pair = page_alloc(gc->current);
+
+    if (!pair)
+    {
+      // If allocation has failed following collection, we need to increase the
+      // size of our backup page and try again.
+      page_resize(&gc->backup, gc->backup->capacity * 2);
+    }
+  }
+
+  return pair;
+}
+
+void gc_collect()
+{
+  // TODO: complete algorithm
+  FAIL("Not done");
+}
+
 /* Copyright (C) 2026 Aryadev Chavali
 
  * This program is distributed in the hope that it will be useful, but WITHOUT

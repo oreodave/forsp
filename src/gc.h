@@ -52,14 +52,14 @@ typedef struct
 void gc_init(gc_t *);
 void gc_stop(gc_t *);
 
-/** Perform a collection as per Cheney's algorithm in the current GC structure.
- */
-void gc_collect();
-
 /** Allocate a new object pair in the current GC structure.
  * May collect if there is not enough space in the current page.
  */
 pair_t *gc_alloc(gc_t *);
+
+/** Perform a collection as per Cheney's algorithm in the current GC structure.
+ */
+void gc_collect();
 
 #endif
 
