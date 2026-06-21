@@ -17,7 +17,9 @@
 #include "common.h"
 #include "obj.h"
 
-constexpr size_t GC_CHUNK_SLOTS       = 4096;
+#ifndef GC_CHUNK_SLOTS
+#define GC_CHUNK_SLOTS 4096
+#endif
 constexpr size_t GC_CHUNK_DATA_SIZE   = GC_CHUNK_SLOTS * 16;
 constexpr size_t GC_CHUNK_MARK_WORDS  = (GC_CHUNK_SLOTS + 63) >> 6;
 constexpr size_t GC_THRESHOLD_DEFAULT = 64 * 16;

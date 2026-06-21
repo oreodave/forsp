@@ -79,7 +79,7 @@ void gc_reset()
 static gc_chunk_t *gc_new_chunk(void)
 {
   // aligned_alloc(4096, ...) gives 16-byte alignment for slots
-  gc_chunk_t *c = aligned_alloc(4096, sizeof(gc_chunk_t));
+  gc_chunk_t *c = aligned_alloc(16, sizeof(gc_chunk_t));
   if (!c)
   {
     FAIL("GC: failed to allocate chunk");
