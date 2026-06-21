@@ -46,13 +46,6 @@ int main(int argc, char *argv[])
   obj_t *obj = read();
   compute(obj, state->env);
 
-#if DEBUG > 1
-  printf("GC Stats:\n\t#Collects: %lu\n\tSize of current page: %lu/%lu\n\tSize "
-         "of backup page: %lu\n",
-         state->gc.collect_hits, state->gc.current->length,
-         state->gc.current->capacity, state->gc.backup->capacity);
-#endif
-
   // state_stop();
 
   return 0;

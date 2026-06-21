@@ -33,14 +33,7 @@ void compute(obj_t *comp, obj_t *env)
         continue;
       }
 
-// Otherwise perform a lookup and "call" the value.
-#if DEBUG > 1
-      printf("env-lookup:\n\tlooking for: ");
-      print(cmd);
-      printf("\n\tin: ");
-      print(env);
-      printf("\n");
-#endif
+      // Otherwise perform a lookup and "call" the value.
       auto val = env_find(env, cmd);
       if (IS_CLOS(val))
       {
