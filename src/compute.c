@@ -1,18 +1,22 @@
-/* eval.c: Eval and compute functions implementing CBPV semantics.
+/* compute.c: Eval and compute functions implementing CBPV semantics.
  * Created: 2026-05-15
  * Author: Aryadev Chavali
  * License: See end of file
  */
 
-#include "common.h"
+#include "compute.h"
+#include "state.h"
 
 void compute(obj_t *comp, obj_t *env)
 {
 #if DEBUG > 1
   printf("compute: ");
   print(comp);
+  printf("\n");
 #endif
 
+  gc_root_push(&comp);
+  gc_root_push(&env);
   while (comp != NULL)
   {
     auto cmd = car(comp);
@@ -31,7 +35,14 @@ void compute(obj_t *comp, obj_t *env)
         continue;
       }
 
-      // Otherwise perform a lookup and "call" the value.
+// Otherwise perform a lookup and "call" the value.
+#if DEBUG > 1
+      printf("env-lookup:\n\tlooking for: ");
+      print(cmd);
+      printf("\n\tin: ");
+      print(env);
+      printf("\n");
+#endif
       auto val = env_find(env, cmd);
       if (IS_CLOS(val))
       {
@@ -51,6 +62,9 @@ void compute(obj_t *comp, obj_t *env)
     case TAG_PAIR:
       push(make_clos(cmd, env));
       break;
+    case TAG_FWD:
+      FAIL("Unexpected FWD object (%p) in `compute` call", (void *)cmd);
+      break;
     case TAG_NUM:
     case TAG_CLOS:
     case TAG_PRIM:
@@ -59,16 +73,19 @@ void compute(obj_t *comp, obj_t *env)
       break;
     }
   }
+  gc_root_pop();
+  gc_root_pop();
 }
 
 /* Copyright (c) 2024 Anthony Bonkoski
  * Copyright (C) 2026 Aryadev Chavali
- *
+
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the MIT License for details.
- *
+
  * You may distribute and modify this code under the terms of the MIT License,
  * which you should have received a copy of along with this program.  If not,
  * please go to <https://opensource.org/license/MIT>.
+
  */

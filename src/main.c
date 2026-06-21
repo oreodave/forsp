@@ -5,6 +5,8 @@
  */
 
 #include "common.h"
+#include "compute.h"
+#include "state.h"
 
 static char *load_file(const char *filename, size_t *const size)
 {
@@ -25,21 +27,8 @@ static char *load_file(const char *filename, size_t *const size)
   return mem;
 }
 
-void setup(const char *input_path)
-{
-  memset(state, 0, sizeof(state));
-  state->input_name = input_path;
-  state->input_str  = load_file(input_path, &state->input_len);
-  state->input_pos  = 0;
-  vec_init(&state->read_stack, 3);
-
-  state->atom_true  = intern("t", 1);
-  state->atom_quote = intern("quote", 5);
-  state->atom_push  = intern("push", 4);
-  state->atom_pop   = intern("pop", 3);
-
-  state_env_setup();
-}
+// Allocate the state variable in this code unit.
+state_t state[1];
 
 int main(int argc, char *argv[])
 {
@@ -48,22 +37,36 @@ int main(int argc, char *argv[])
     fprintf(stderr, "usage: %s <path>\n", argv[0]);
     return 1;
   }
-  setup(argv[1]);
+
+  state_init();
+  state->input_name = argv[1];
+  state->input_str  = load_file(argv[1], &state->input_len);
+  state->input_pos  = 0;
 
   obj_t *obj = read();
   compute(obj, state->env);
+
+#if DEBUG > 1
+  printf("GC Stats:\n\t#Collects: %lu\n\tSize of current page: %lu/%lu\n\tSize "
+         "of backup page: %lu\n",
+         state->gc.collect_hits, state->gc.current->length,
+         state->gc.current->capacity, state->gc.backup->capacity);
+#endif
+
+  // state_stop();
 
   return 0;
 }
 
 /* Copyright (c) 2024 Anthony Bonkoski
  * Copyright (C) 2026 Aryadev Chavali
- *
+
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the MIT License for details.
- *
+
  * You may distribute and modify this code under the terms of the MIT License,
  * which you should have received a copy of along with this program.  If not,
  * please go to <https://opensource.org/license/MIT>.
+
  */
