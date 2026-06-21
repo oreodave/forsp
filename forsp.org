@@ -40,7 +40,11 @@ didn't need to maintain pointers.  So arenas would be the next natural
 fit.  However, even with an arena we're still leaving garbage around.
 We need a way of collecting it, so we don't run out of memory for
 really large programs.
-** WIP Cheney's algorithm
+** WAIT Cheney's algorithm
+2026-06-21: My initial Cheney's algorithm impl didn't go so well.
+Leaving this in WAIT for potential future work.  Looking at other GC
+strategies currently.
+
 Cheney's algorithm describes a method of allocation and collecting.
 We maintain the heap as is, and when it overfills we enter
 ~collection~.  To collect, we consider the heap as two portions:
