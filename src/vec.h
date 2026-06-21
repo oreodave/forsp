@@ -22,6 +22,7 @@ typedef struct vec
 } vec_t;
 
 void vec_init(vec_t *vec, size_t initial_capacity);
+void vec_stop(vec_t *vec);
 void vec_push(vec_t *vec, obj_t *item);
 void vec_push_mult(vec_t *vec, obj_t **items, u64 num_items);
 bool vec_try_pop(vec_t *vec, obj_t **ret);

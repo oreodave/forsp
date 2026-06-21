@@ -15,6 +15,12 @@ void vec_init(vec_t *vec, size_t initial_capacity)
   vec->items    = calloc(initial_capacity, sizeof(*vec->items));
 }
 
+void vec_stop(vec_t *vec)
+{
+  free(vec->items);
+  memset(vec, 0, sizeof(*vec));
+}
+
 void vec_push(vec_t *vec, obj_t *item)
 {
   if (!vec)
