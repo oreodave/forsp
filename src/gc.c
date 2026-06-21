@@ -5,32 +5,31 @@
  */
 
 #include "gc.h"
-
-static gc_t gc = {0};
+#include "state.h"
 
 void gc_reset(void)
 {
-  for (size_t i = 0; i < gc.pool.length; ++i)
+  for (size_t i = 0; i < state->gc.pool.length; ++i)
   {
-    free(gc.pool.chunks[i]);
+    free(state->gc.pool.chunks[i]);
   }
-  free(gc.pool.chunks);
-  memset(&gc, 0, sizeof(gc));
-  gc.metadata.threshold = 64 * 16;
+  free(state->gc.pool.chunks);
+  memset(&state->gc, 0, sizeof(state->gc));
+  state->gc.metadata.threshold = 64 * 16;
 }
 
 static inline void gc_free_list_push(void *slot)
 {
-  *(void **)slot = gc.free_list;
-  gc.free_list   = slot;
+  *(void **)slot      = state->gc.free_list;
+  state->gc.free_list = slot;
 }
 
 static inline void *gc_free_list_pop()
 {
-  void *slot = gc.free_list;
+  void *slot = state->gc.free_list;
   if (slot)
   {
-    gc.free_list = *(void **)slot;
+    state->gc.free_list = *(void **)slot;
   }
   return slot;
 }
@@ -56,24 +55,25 @@ static gc_chunk_t *gc_new_chunk(void)
   }
 
   // Push onto the chunk array in the pool.
-  if (!gc.pool.capacity)
+  if (!state->gc.pool.capacity)
   {
-    gc.pool.capacity = 1;
-    gc.pool.chunks   = malloc(sizeof(*gc.pool.chunks));
+    state->gc.pool.capacity = 1;
+    state->gc.pool.chunks   = malloc(sizeof(*state->gc.pool.chunks));
   }
-  else if (gc.pool.capacity - gc.pool.length == 0)
+  else if (state->gc.pool.capacity - state->gc.pool.length == 0)
   {
-    gc.pool.capacity *= 2;
-    gc.pool.chunks =
-        realloc(gc.pool.chunks, sizeof(*gc.pool.chunks) * gc.pool.capacity);
+    state->gc.pool.capacity *= 2;
+    state->gc.pool.chunks =
+        realloc(state->gc.pool.chunks,
+                sizeof(*state->gc.pool.chunks) * state->gc.pool.capacity);
   }
 
-  if (!gc.pool.chunks)
+  if (!state->gc.pool.chunks)
   {
     FAIL("GC: failed to reallocate pool of chunks");
   }
 
-  gc.pool.chunks[gc.pool.length++] = c;
+  state->gc.pool.chunks[state->gc.pool.length++] = c;
 
   return c;
 }
@@ -83,9 +83,9 @@ static gc_chunk_t *gc_new_chunk(void)
 static gc_chunk_t *gc_find_chunk(void *raw_ptr)
 {
   u8 *raw = raw_ptr;
-  for (size_t i = 0; i < gc.pool.length; ++i)
+  for (size_t i = 0; i < state->gc.pool.length; ++i)
   {
-    auto c     = gc.pool.chunks[i];
+    auto c     = state->gc.pool.chunks[i];
     auto start = c->data;
     auto end   = start + GC_CHUNK_DATA_SIZE;
     if (raw >= start && raw < end)
@@ -121,17 +121,17 @@ static inline bool gc_bit_test(const u64 *bits, size_t idx)
 
 __attribute__((noinline)) obj_t *gc_alloc(tag_t tag)
 {
-  if (gc.metadata.alloc_bytes >= gc.metadata.threshold)
+  if (state->gc.metadata.alloc_bytes >= state->gc.metadata.threshold)
   {
     gc_collect();
   }
 
-  if (!gc.free_list)
+  if (!state->gc.free_list)
     gc_new_chunk();
 
   void *slot = gc_free_list_pop();
-  gc.metadata.alloc_live++;
-  gc.metadata.alloc_bytes += 16;
+  state->gc.metadata.alloc_live++;
+  state->gc.metadata.alloc_bytes += 16;
 
   gc_chunk_t *c = gc_find_chunk(slot);
   size_t idx    = gc_slot_index(c, slot);
@@ -168,9 +168,9 @@ void gc_mark_obj(obj_t *obj)
 size_t gc_sweep(void)
 {
   size_t freed = 0;
-  for (size_t i = 0; i < gc.pool.length; ++i)
+  for (size_t i = 0; i < state->gc.pool.length; ++i)
   {
-    gc_chunk_t *c = gc.pool.chunks[i];
+    gc_chunk_t *c = state->gc.pool.chunks[i];
     for (size_t j = 0; j < GC_CHUNK_SLOTS; ++j)
     {
       if (!gc_bit_test(c->alloc_bits, j))
@@ -187,11 +187,11 @@ size_t gc_sweep(void)
     memset(c->mark_bits, 0, sizeof(c->mark_bits));
   }
 
-  gc.metadata.alloc_live -= freed;
-  gc.metadata.alloc_bytes = gc.metadata.alloc_live * 16;
-  gc.metadata.threshold   = gc.metadata.alloc_bytes * 2;
-  if (gc.metadata.threshold < 64 * 16)
-    gc.metadata.threshold = 64 * 16;
+  state->gc.metadata.alloc_live -= freed;
+  state->gc.metadata.alloc_bytes = state->gc.metadata.alloc_live * 16;
+  state->gc.metadata.threshold   = state->gc.metadata.alloc_bytes * 2;
+  if (state->gc.metadata.threshold < 64 * 16)
+    state->gc.metadata.threshold = 64 * 16;
 
   return freed;
 }
@@ -204,12 +204,17 @@ size_t gc_collect(void)
 
 size_t gc_alloc_count(void)
 {
-  return gc.metadata.alloc_live;
+  return state->gc.metadata.alloc_live;
 }
 
 size_t gc_bytes_allocated(void)
 {
-  return gc.metadata.alloc_bytes;
+  return state->gc.metadata.alloc_bytes;
+}
+
+size_t gc_num_chunks(void)
+{
+  return state->gc.pool.length;
 }
 
 /* Copyright (c) 2024 Anthony Bonkoski
