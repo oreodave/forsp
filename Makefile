@@ -1,12 +1,12 @@
 CC=cc
-CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Wswitch-enum -Werror -ggdb -Isrc
+CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Wswitch-enum -Werror -ggdb
 LDFLAGS=
 
 DIST=bin
 OUT=$(DIST)/forsp
 
-CODE=src/vec.c src/obj.c src/primitives.c src/state.c src/compute.c \
-		src/reader.c src/print.c src/main.c
+LIB=src/vec.c src/obj.c src/gc.c src/primitives.c src/state.c src/compute.c \
+		src/reader.c src/print.c
 
 HEADERS=src/common.h src/gc.h src/vec.h src/obj.h src/primitives.h src/state.h \
 		src/compute.h
@@ -20,8 +20,8 @@ TESTS=$(DIST)/test_gc
 .PHONY:
 all: $(OUT) $(TESTS)
 
-$(OUT): $(HEADERS) $(CODE) | $(DIST)
-	$(CC) $(CFLAGS) -o $@ $(CODE)
+$(OUT): $(HEADERS) $(LIB) src/main.c | $(DIST)
+	$(CC) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c
 
 $(DIST)/test_gc: tests/libtest.h $(HEADERS) tests/test_gc.c src/gc.c | $(DIST)
 	$(CC) $(CFLAGS) -Itests -o $@ tests/test_gc.c src/gc.c

@@ -96,6 +96,7 @@ size_t gc_collect(void);
 
 size_t gc_alloc_count(void);
 size_t gc_bytes_allocated(void);
+size_t gc_num_chunks(void);
 
 #endif
 
