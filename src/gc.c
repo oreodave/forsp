@@ -133,10 +133,7 @@ static gc_chunk_t *gc_find_chunk(void *raw_ptr, size_t *slot_id)
     auto end   = start + GC_CHUNK_DATA_SIZE;
     if (raw >= start && raw < end)
     {
-      if (slot_id)
-      {
-        *slot_id = (((u8 *)raw_ptr - c->data) / 16);
-      }
+      *slot_id = (((u8 *)raw_ptr - c->data) / 16);
       return c;
     }
   }
@@ -227,13 +224,15 @@ static inline void gc_mark_stack_march(void)
   printf("GC:collect:stack_march: iterating from start=%p -> end=%p\n", sp,
          (void *)end);
 #endif
+
+  size_t _ = 0;
   for (void **p = sp; p < end; ++p)
   {
     obj_t *maybe = *(obj_t **)p;
     if (IS_ALLOC(maybe))
     {
       void *raw = (void *)UNTAG(maybe);
-      if (gc_find_chunk(raw, NULL))
+      if (gc_find_chunk(raw, &_))
       {
 #if DEBUG & DEBUG_GC
         printf("\tMarking allocation %p => %p\n", (void *)p, raw);
@@ -250,11 +249,18 @@ static inline void gc_mark_stack_march(void)
 
 size_t gc_collect(void)
 {
+  gc_mark_stack_march();
   gc_mark_obj(state->stack);
   gc_mark_obj(state->env);
-  gc_mark_stack_march();
 
-  return gc_sweep();
+  for (i64 i = 0; i < state->frame_depth; ++i)
+  {
+    gc_mark_obj(state->frames[i].comp);
+    gc_mark_obj(state->frames[i].env);
+  }
+
+  size_t freed = gc_sweep();
+  return freed;
 }
 
 /* Copyright (c) 2024 Anthony Bonkoski
