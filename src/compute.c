@@ -7,32 +7,30 @@
 #include "compute.h"
 #include "state.h"
 
-typedef struct
+static inline void frames_push(obj_t *comp, obj_t *env)
 {
-  obj_t *comp;
-  obj_t *env;
-} frame_t;
+  state->frames[state->frame_depth++] = (frame_t){.comp = comp, .env = env};
+}
 
-constexpr size_t COMPUTE_LIMIT = 1024;
-static frame_t frames[COMPUTE_LIMIT];
+static inline frame_t *frames_peek(void)
+{
+  return &state->frames[state->frame_depth - 1];
+}
 
 void compute(obj_t *comp, obj_t *env)
 {
-  memset(frames, 0, sizeof(frames));
-  frames[0] = (frame_t){.comp = comp, .env = env};
-  i64 depth = 1;
-
-  while (depth > 0)
+  frames_push(comp, env);
+  while (state->frame_depth > 0)
   {
-    frame_t *frame = &frames[depth - 1];
+    frame_t *frame = frames_peek();
     if (!frame->comp)
     {
-      --depth;
+      --state->frame_depth;
       continue;
     }
 
 #if DEBUG & DEBUG_COMPUTE
-    printf("compute[%ld]: ", depth);
+    printf("compute[%ld]: ", state->frame_depth);
     print(frame->comp);
     printf("\n");
     printf("stack: ");
@@ -44,8 +42,6 @@ void compute(obj_t *comp, obj_t *env)
     BORDER();
 #endif
 
-    gc_mark_obj(frame->comp);
-    gc_mark_obj(frame->env);
     auto cmd    = car(frame->comp);
     frame->comp = cdr(frame->comp);
 
@@ -67,8 +63,7 @@ void compute(obj_t *comp, obj_t *env)
       if (IS_CLOS(val))
       {
         auto new_clos = as_clos(val);
-        frames[depth++] =
-            (frame_t){.comp = new_clos->body, .env = new_clos->env};
+        frames_push(new_clos->body, new_clos->env);
       }
       else if (IS_PRIM(val))
       {
@@ -84,7 +79,6 @@ void compute(obj_t *comp, obj_t *env)
     case TAG_PAIR:
     {
       auto new_clos = make_clos(cmd, frame->env);
-      gc_mark_obj(frame->env);
       push(new_clos);
     }
     break;
