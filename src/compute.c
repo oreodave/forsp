@@ -24,8 +24,8 @@ static inline clos_t *frames_peek(void)
 
 static inline void eval(clos_t *frame)
 {
-  auto cmd    = car(frame->body);
-  frame->body = cdr(frame->body);
+  auto cmd    = DIRECT_CAR(frame->body);
+  frame->body = DIRECT_CDR(frame->body);
 
   switch (get_tag(cmd))
   {
@@ -35,8 +35,8 @@ static inline void eval(clos_t *frame)
     {
       if (frame->body == NULL)
         FAIL("Expected data following a quote form");
-      push(car(frame->body));
-      frame->body = cdr(frame->body);
+      push(DIRECT_CAR(frame->body));
+      frame->body = DIRECT_CDR(frame->body);
       return;
     }
 

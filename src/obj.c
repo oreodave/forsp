@@ -26,7 +26,7 @@ obj_t *make_num(int64_t num)
 obj_t *make_pair(obj_t *car, obj_t *cdr)
 {
   obj_t *opair = gc_alloc(TAG_PAIR);
-  pair_t *pair = as_pair(opair);
+  pair_t *pair = DIRECT_UNTAG(opair, pair_t *);
   pair->car    = car;
   pair->cdr    = cdr;
   return opair;
@@ -35,7 +35,7 @@ obj_t *make_pair(obj_t *car, obj_t *cdr)
 obj_t *make_clos(obj_t *body, obj_t *env)
 {
   obj_t *oclos = gc_alloc(TAG_CLOS);
-  clos_t *clos = as_clos(oclos);
+  clos_t *clos = DIRECT_UNTAG(oclos, clos_t *);
   clos->body   = body;
   clos->env    = env;
   return oclos;

@@ -35,6 +35,10 @@ typedef struct obj obj_t;
 
 #define IS_ALLOC(OBJ) (IS_PAIR(OBJ) || IS_CLOS(OBJ))
 
+#define DIRECT_UNTAG(X, T) ((T)UNTAG(X))
+#define DIRECT_CAR(O)      (((pair_t *)(UNTAG(O)))->car)
+#define DIRECT_CDR(O)      (((pair_t *)(UNTAG(O)))->cdr)
+
 typedef struct pair
 {
   obj_t *car, *cdr;
@@ -76,21 +80,21 @@ inline pair_t *as_pair(obj_t *obj)
 {
   if (!IS_PAIR(obj))
     return NULL;
-  return (pair_t *)UNTAG(obj);
+  return DIRECT_UNTAG(obj, pair_t *);
 }
 
 inline clos_t *as_clos(obj_t *obj)
 {
   if (!IS_CLOS(obj))
     return NULL;
-  return (clos_t *)UNTAG(obj);
+  return DIRECT_UNTAG(obj, clos_t *);
 }
 
 inline prim_t *as_prim(obj_t *obj)
 {
   if (!IS_PRIM(obj))
     return NULL;
-  return (prim_t *)UNTAG(obj);
+  return DIRECT_UNTAG(obj, prim_t *);
 }
 
 inline obj_t *car(obj_t *obj)

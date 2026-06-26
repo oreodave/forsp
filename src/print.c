@@ -18,8 +18,8 @@ void print_list_tail(obj_t *obj)
   if (IS_PAIR(obj))
   {
     printf(" ");
-    print_recurse(car(obj));
-    print_list_tail(cdr(obj));
+    print_recurse(DIRECT_CAR(obj));
+    print_list_tail(DIRECT_CDR(obj));
   }
   else
   {
@@ -45,14 +45,14 @@ void print_recurse(obj_t *obj)
   case TAG_PAIR:
   {
     printf("(");
-    print_recurse(car(obj));
-    print_list_tail(cdr(obj));
+    print_recurse(DIRECT_CAR(obj));
+    print_list_tail(DIRECT_CDR(obj));
   }
   break;
   case TAG_CLOS:
   {
     printf("CLOSURE<");
-    clos_t *clos = as_clos(obj);
+    clos_t *clos = DIRECT_UNTAG(obj, clos_t *);
     print_recurse(clos->body);
     printf(", %p>", (void *)clos->env);
   }

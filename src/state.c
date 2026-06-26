@@ -53,8 +53,8 @@ bool try_pop(obj_t **_out)
     return false;
   }
 
-  *_out        = car(state->stack);
-  state->stack = cdr(state->stack);
+  *_out        = DIRECT_CAR(state->stack);
+  state->stack = DIRECT_CDR(state->stack);
   return true;
 }
 
@@ -75,9 +75,10 @@ obj_t *env_find(obj_t *env, obj_t *key)
   if (!IS_ATOM(key))
     FAIL("Expected 'key' (%lx) to be an atom in env_find()", (uintptr_t)key);
 
-  for (auto kv = car(env); env != NULL; env = cdr(env), kv = car(env))
-    if (key == car(kv))
-      return cdr(kv);
+  for (auto kv = DIRECT_CAR(env); env != NULL;
+       env = DIRECT_CDR(env), kv = DIRECT_CAR(env))
+    if (key == DIRECT_CAR(kv))
+      return DIRECT_CDR(kv);
 
   FAIL("Failed to find in key='%s' in environment", as_atom(key));
 }
