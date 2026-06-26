@@ -7,6 +7,11 @@
 #include "compute.h"
 #include "state.h"
 
+static inline bool frames_available()
+{
+  return state->frame_depth > 0;
+}
+
 static inline void frames_push(obj_t *comp, obj_t *env)
 {
   state->frames[state->frame_depth++] = (clos_t){.body = comp, .env = env};
@@ -53,7 +58,7 @@ static inline void eval(clos_t *frame)
     }
     else if (IS_PRIM(val))
     {
-      prim_t *prim = as_prim(val);
+      auto prim = as_prim(val);
       prim(&frame->env);
     }
     else
@@ -78,11 +83,14 @@ static inline void eval(clos_t *frame)
 }
 
 /** Compute function: the main driver of Forsp.
+
+ * This is the core loop for evaluation in Forsp.  We keep evaluating a `frame`,
+ * member by member through `eval` (which see),
  */
 void compute(obj_t *comp, obj_t *env)
 {
   frames_push(comp, env);
-  while (state->frame_depth > 0)
+  while (frames_available())
   {
     clos_t *frame = frames_peek();
     if (!frame->body)
