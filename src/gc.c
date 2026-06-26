@@ -16,11 +16,6 @@ static inline void bitmap_set(u64 *bits, size_t idx)
   bits[idx / 64] |= (1ULL << (idx % 64));
 }
 
-static inline void bitmap_clear(u64 *bits, size_t idx)
-{
-  bits[idx / 64] &= ~(1ULL << (idx % 64));
-}
-
 static inline bool bitmap_test(const u64 *bits, size_t idx)
 {
   return (bits[idx / 64] >> (idx % 64)) & 1;
@@ -188,6 +183,8 @@ void gc_mark_obj(obj_t *obj)
 
 size_t gc_sweep(void)
 {
+  // We must iterate through every chunk and look for unmarked live allocations
+  // to eat up into our free list.
   size_t freed = 0;
   for (size_t i = 0; i < state->gc.pool.length; ++i)
   {
@@ -195,21 +192,22 @@ size_t gc_sweep(void)
     for (size_t w = 0; w < GC_CHUNK_MARK_WORDS; ++w)
     {
       // We only want to free those that are both live and unmarked.
-      u64 to_free  = c->live_bits[w] & ~c->mark_bits[w];
-      u64 word_pos = w * 64;
-      while (to_free)
+      u64 to_free = c->live_bits[w] & ~c->mark_bits[w];
+
+      u64 base = w * 64 * 16;
+      for (u64 todo = to_free; todo; todo &= todo - 1)
       {
         // Find the lowest bit which is nonzero through a single hardware inst.
-        int bit = __builtin_ctzll(to_free);
-        // Clear the lowest bit.
-        to_free &= to_free - 1;
+        int bit = __builtin_ctzll(todo);
 
-        // Access the slot and put it on the free list.
-        void *slot = c->data + ((word_pos + bit) * 16);
+        // Put the slot designated by the bit into the free list.
+        void *slot = c->data + base + (bit * 16);
         gc_free_list_push(slot);
-        bitmap_clear(c->live_bits, word_pos + bit);
         freed++;
       }
+
+      // Clear all live bits in one go.
+      c->live_bits[w] &= ~to_free;
     }
     memset(c->mark_bits, 0, sizeof(c->mark_bits));
   }
