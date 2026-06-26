@@ -1,7 +1,7 @@
 CC=cc
 CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Wswitch-enum -Werror -ggdb -O1
 LDFLAGS=
-DEPS=
+DEFS=
 
 DIST=bin
 OUT=$(DIST)/forsp
@@ -17,13 +17,10 @@ EXAMPLES=examples/church-numerals.fp examples/currying.fp examples/demo.fp \
 		examples/higher-order-functions.fp examples/tutorial.fp
 
 $(OUT): $(HEADERS) $(LIB) src/main.c | $(DIST)
-	$(CC) $(DEPS) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c
+	$(CC) $(DEFS) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c
 
 $(DIST):
 	mkdir -p $(DIST)
-
-scratch.fp:
-	echo "()" > scratch.fp
 
 .PHONY: clean
 clean:
@@ -65,6 +62,8 @@ callperf: $(OUT)
 benchmark: $(OUT)
 	poop "./forsp.original ./examples/forsp.fp" "$(OUT) ./examples/forsp.fp" > new-benchmark.txt
 
+scratch.fp:
+	echo "()" > scratch.fp
 
 .PHONY: scratch
 scratch: $(OUT) scratch.fp
