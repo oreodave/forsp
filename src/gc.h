@@ -17,12 +17,28 @@
 #include "common.h"
 #include "obj.h"
 
+/** Type for a free slot in the GC.
+ * Free slots are arranged in a linked list, and are used to allow re-use of
+ * allocations during the sweep phase (which see: `gc_sweep`).
+
+ * NOTE: An assumption that 16 bits is the consistent slot size is made here to
+ * allow this GC to function.
+
+ * `next_slot`: next free slot in the free list.
+ * `chunk_id`: chunk this free slot belongs to.
+ * `slot_id`: specific index (slot wise) within the chunk this slot belongs to.
+ */
+typedef struct
+{
+  void *next_slot;
+  u32 chunk_id, slot_id;
+} gc_free_slot_t;
+
 #ifndef GC_CHUNK_SLOTS
 // By default we want 4096 slots per chunk.
 #define GC_CHUNK_SLOTS (1LU << 12)
 #endif
-constexpr size_t GC_SLOT_SIZE       = sizeof(pair_t);
-constexpr size_t GC_CHUNK_DATA_SIZE = GC_SLOT_SIZE * GC_CHUNK_SLOTS;
+constexpr size_t GC_CHUNK_DATA_SIZE = sizeof(gc_free_slot_t) * GC_CHUNK_SLOTS;
 constexpr size_t GC_CHUNK_MARK_WORDS =
     (GC_CHUNK_SLOTS + 63) / 64; // = ceil(GC_CHUNK_SLOTS / 64)
 constexpr size_t GC_THRESHOLD_DEFAULT = GC_CHUNK_DATA_SIZE / 2;

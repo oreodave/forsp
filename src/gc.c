@@ -7,6 +7,8 @@
 #include "gc.h"
 #include "state.h"
 
+static gc_t *gc = &state->gc;
+
 /******************************************************************************
  * Bitmap Helpers                                                             *
  ******************************************************************************/
@@ -25,18 +27,49 @@ static inline bool bitmap_test(const u64 *bits, size_t idx)
  * Free list Helpers                                                          *
  ******************************************************************************/
 
-static inline void gc_free_list_push(void *slot)
+/** Push a new slot onto the free list.
+ * This slot is presumed to be unused, thus the data owned by it is mutated to
+ * become a `gc_free_slot_t`.
+ * `chunk_id` and `slot_id` are stored in this type for allocation purposes.
+ */
+static inline void gc_free_list_push(void *slot, u32 chunk_id, u32 slot_id)
 {
-  ((pair_t *)slot)->car = state->gc.free_list;
-  state->gc.free_list   = slot;
+  gc_free_slot_t *fslot = slot;
+  fslot->next_slot      = gc->free_list;
+  fslot->chunk_id       = chunk_id;
+  fslot->slot_id        = slot_id;
+  gc->free_list         = slot;
 }
 
-static inline void *gc_free_list_pop()
+/** Pop a free slot from the free list.
+ */
+static inline gc_free_slot_t *gc_free_list_pop()
 {
-  pair_t *free_slot = state->gc.free_list;
+  gc_free_slot_t *free_slot = gc->free_list;
   if (free_slot)
-    state->gc.free_list = free_slot->car;
+    gc->free_list = free_slot->next_slot;
   return free_slot;
+}
+
+/******************************************************************************
+ * Slot/Chunk interaction helpers                                             *
+ ******************************************************************************/
+
+/** Check if `raw_ptr` is an allocation from `chunk`.
+ */
+static inline bool gc_ptr_in_chunk(gc_chunk_t *chunk, void *raw_ptr)
+{
+  auto start = chunk->data;
+  auto end   = start + GC_CHUNK_DATA_SIZE;
+  return (u8 *)raw_ptr >= start && (u8 *)raw_ptr < end;
+}
+
+/** Get the slot that `raw_ptr` belongs to within `chunk`, presuming `raw_ptr`
+ * has been verified to have been allocated within `chunk`.
+ */
+static inline size_t gc_ptr_slot_in_chunk(gc_chunk_t *chunk, void *raw_ptr)
+{
+  return ((u8 *)raw_ptr - chunk->data) / 16;
 }
 
 /******************************************************************************
@@ -46,16 +79,16 @@ static inline void *gc_free_list_pop()
 void gc_init()
 {
   memset(&state->gc, 0, sizeof(state->gc));
-  state->gc.metadata.threshold = GC_THRESHOLD_DEFAULT;
+  gc->metadata.threshold = GC_THRESHOLD_DEFAULT;
 }
 
 void gc_stop()
 {
-  for (size_t i = 0; i < state->gc.pool.length; ++i)
+  for (size_t i = 0; i < gc->pool.length; ++i)
   {
-    free(state->gc.pool.chunks[i]);
+    free(gc->pool.chunks[i]);
   }
-  free(state->gc.pool.chunks);
+  free(gc->pool.chunks);
   memset(&state->gc, 0, sizeof(state->gc));
 }
 
@@ -82,43 +115,30 @@ static gc_chunk_t *gc_new_chunk(void)
   for (size_t i = 0; i < GC_CHUNK_SLOTS; ++i)
   {
     void *slot = c->data + i * 16;
-    gc_free_list_push(slot);
+    gc_free_list_push(slot, gc->pool.length, i);
   }
 
   // Push onto the chunk array in the pool.
-  if (!state->gc.pool.capacity)
+  if (!gc->pool.capacity)
   {
-    state->gc.pool.capacity = 1;
-    state->gc.pool.chunks   = malloc(sizeof(*state->gc.pool.chunks));
+    gc->pool.capacity = 1;
+    gc->pool.chunks   = malloc(sizeof(*gc->pool.chunks));
   }
-  else if (state->gc.pool.capacity - state->gc.pool.length == 0)
+  else if (gc->pool.capacity - gc->pool.length == 0)
   {
-    state->gc.pool.capacity *= 2;
-    state->gc.pool.chunks =
-        realloc(state->gc.pool.chunks,
-                sizeof(*state->gc.pool.chunks) * state->gc.pool.capacity);
+    gc->pool.capacity *= 2;
+    gc->pool.chunks =
+        realloc(gc->pool.chunks, sizeof(*gc->pool.chunks) * gc->pool.capacity);
   }
 
-  if (!state->gc.pool.chunks)
+  if (!gc->pool.chunks)
   {
     FAIL("GC: failed to reallocate pool of chunks");
   }
 
-  state->gc.pool.chunks[state->gc.pool.length++] = c;
+  gc->pool.chunks[gc->pool.length++] = c;
 
   return c;
-}
-
-static inline bool gc_ptr_in_chunk(gc_chunk_t *chunk, void *raw_ptr)
-{
-  auto start = chunk->data;
-  auto end   = start + GC_CHUNK_DATA_SIZE;
-  return (u8 *)raw_ptr >= start && (u8 *)raw_ptr < end;
-}
-
-static inline size_t gc_ptr_slot_in_chunk(gc_chunk_t *chunk, void *raw_ptr)
-{
-  return ((u8 *)raw_ptr - chunk->data) / 16;
 }
 
 /** Locate which chunk owns a raw pointer, returning it.
@@ -128,9 +148,9 @@ static inline size_t gc_ptr_slot_in_chunk(gc_chunk_t *chunk, void *raw_ptr)
  */
 static gc_chunk_t *gc_find_chunk(void *raw_ptr, size_t *slot_id)
 {
-  for (size_t i = 0; i < state->gc.pool.length; ++i)
+  for (size_t i = 0; i < gc->pool.length; ++i)
   {
-    auto c = state->gc.pool.chunks[i];
+    auto c = gc->pool.chunks[i];
     if (gc_ptr_in_chunk(c, raw_ptr))
     {
       *slot_id = gc_ptr_slot_in_chunk(c, raw_ptr);
@@ -142,21 +162,21 @@ static gc_chunk_t *gc_find_chunk(void *raw_ptr, size_t *slot_id)
 
 __attribute__((noinline)) obj_t *gc_alloc(tag_t tag)
 {
-  if (state->gc.metadata.alloc_live * 16 >= state->gc.metadata.threshold)
+  if (gc->metadata.alloc_live * 16 >= gc->metadata.threshold)
   {
     gc_collect();
   }
-  if (!state->gc.free_list)
+  if (!gc->free_list)
   {
     gc_new_chunk();
   }
 
-  void *slot = gc_free_list_pop();
-  state->gc.metadata.alloc_live++;
+  auto slot = gc_free_list_pop();
+  gc->metadata.alloc_live++;
 
-  size_t idx    = 0;
-  gc_chunk_t *c = gc_find_chunk(slot, &idx);
-  bitmap_set(c->live_bits, idx);
+  gc_chunk_t *c = gc->pool.chunks[slot->chunk_id];
+  bitmap_set(c->live_bits, slot->slot_id);
+  memset(slot, 0, sizeof(*slot));
 
   return TAG_CANON(slot, tag);
 }
@@ -186,23 +206,23 @@ size_t gc_sweep(void)
   // We must iterate through every chunk and look for unmarked live allocations
   // to eat up into our free list.
   size_t freed = 0;
-  for (size_t i = 0; i < state->gc.pool.length; ++i)
+  for (size_t i = 0; i < gc->pool.length; ++i)
   {
-    gc_chunk_t *c = state->gc.pool.chunks[i];
+    gc_chunk_t *c = gc->pool.chunks[i];
     for (size_t w = 0; w < GC_CHUNK_MARK_WORDS; ++w)
     {
       // We only want to free those that are both live and unmarked.
       u64 to_free = c->live_bits[w] & ~c->mark_bits[w];
-
-      u64 base = w * 64 * 16;
+      size_t base = w * 64;
       for (u64 todo = to_free; todo; todo &= todo - 1)
       {
         // Find the lowest bit which is nonzero through a single hardware inst.
-        int bit = __builtin_ctzll(todo);
+        int bit           = __builtin_ctzll(todo);
+        size_t slot_index = base + bit;
 
         // Put the slot designated by the bit into the free list.
-        void *slot = c->data + base + (bit * 16);
-        gc_free_list_push(slot);
+        void *slot = c->data + slot_index * 16;
+        gc_free_list_push(slot, i, slot_index);
         freed++;
       }
 
@@ -212,9 +232,9 @@ size_t gc_sweep(void)
     memset(c->mark_bits, 0, sizeof(c->mark_bits));
   }
 
-  state->gc.metadata.alloc_live -= freed;
-  state->gc.metadata.threshold =
-      MAX(GC_THRESHOLD_DEFAULT, state->gc.metadata.alloc_live * 32);
+  gc->metadata.alloc_live -= freed;
+  gc->metadata.threshold =
+      MAX(GC_THRESHOLD_DEFAULT, gc->metadata.alloc_live * 32);
 
 #if DEBUG & DEBUG_GC
   printf("GC:sweep: freed %lu bytes\n", freed * 16);
@@ -223,6 +243,13 @@ size_t gc_sweep(void)
 }
 
 constexpr size_t GC_STACK_MARCH_LIMIT = 512;
+/** Perform a march through the machine stack, marking objects.
+ * This march is done up from the current `rsp` by GC_STACK_MARCH_LIMIT words.
+ * Each word is checked to see if it is a valid object that may have been
+ * allocated.
+
+ * NOTE: Incredibly flimsy, breaks under -O2 and beyond.
+ */
 static inline void gc_mark_stack_march(void)
 {
   void *sp;
@@ -255,7 +282,7 @@ static inline void gc_mark_stack_march(void)
 size_t gc_collect(void)
 {
 #if DEBUG & DEBUG_GC
-  ++state->gc.metadata.num_collections;
+  ++gc->metadata.num_collections;
 #endif
 
   gc_mark_stack_march();
