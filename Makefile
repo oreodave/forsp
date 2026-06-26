@@ -61,6 +61,11 @@ callperf: $(OUT)
 		--dump-instr=yes \
 		./$(OUT) ./examples/forsp.fp;
 
+.PHONY: benchmark
+benchmark: $(OUT)
+	poop "./forsp.original ./examples/forsp.fp" "$(OUT) ./examples/forsp.fp" > new-benchmark.txt
+
+
 .PHONY: scratch
 scratch: $(OUT) scratch.fp
 	./$(OUT) scratch.fp
