@@ -130,6 +130,7 @@ obj_t *read_list(void)
   obj_t *root = NULL, *cur = NULL;
   char c = 0;
 
+  skip_white_and_comments();
   for (c = peek(); (c && c != ')') || state->read_stack.length;
        skip_white_and_comments(), c = peek())
   {
