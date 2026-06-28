@@ -168,6 +168,9 @@ __attribute__((noinline)) obj_t *gc_alloc(tag_t tag)
   }
   if (!gc->free_list)
   {
+#if DEBUG & DEBUG_GC
+    printf("GC:alloc: New chunk - no freelist\n");
+#endif
     gc_new_chunk();
   }
 
@@ -192,6 +195,9 @@ void gc_mark_obj(obj_t *obj)
 
   if (!c || bitmap_test(c->mark_bits, idx))
     return;
+#if DEBUG & DEBUG_GC
+    printf("\tMarked %p\n", raw);
+#endif
 
   bitmap_set(c->mark_bits, idx);
 
@@ -203,6 +209,9 @@ void gc_mark_obj(obj_t *obj)
 
 size_t gc_sweep(void)
 {
+#if DEBUG & DEBUG_GC
+  printf("GC:sweep: starting...\n");
+#endif
   // We must iterate through every chunk and look for unmarked live allocations
   // to eat up into our free list.
   size_t freed = 0;
@@ -214,6 +223,15 @@ size_t gc_sweep(void)
       // We only want to free those that are both live and unmarked.
       u64 to_free = c->live_bits[w] & ~c->mark_bits[w];
       size_t base = w * 64;
+
+#if DEBUG & DEBUG_GC
+      if (to_free)
+      {
+        printf("\t%lu@%lu...%lu => %d slots to free.\n", i, w * 64,
+               (w + 1) * 64, __builtin_popcountll(to_free));
+      }
+#endif
+
       for (u64 todo = to_free; todo; todo &= todo - 1)
       {
         // Find the lowest bit which is nonzero through a single hardware inst.
@@ -256,8 +274,8 @@ static inline void gc_mark_stack_march(void)
   __asm__ volatile("mov %%rsp, %0" : "=r"(sp));
   void **end = (void **)((u8 *)sp + GC_STACK_MARCH_LIMIT);
 
-#if (DEBUG & DEBUG_GC) != 0
-  printf("GC:collect:stack_march: iterating from start=%p -> end=%p\n", sp,
+#if DEBUG & DEBUG_GC
+  printf("GC:collect:stack_march: Iterating from start=%p -> end=%p\n", sp,
          (void *)end);
 #endif
 
@@ -271,7 +289,8 @@ static inline void gc_mark_stack_march(void)
       if (gc_find_chunk(raw, &_))
       {
 #if DEBUG & DEBUG_GC
-        printf("\tMarking allocation %p => %p\n", (void *)p, raw);
+        printf("GC:collect:stack_march: Marking allocation %p => %p\n",
+               (void *)p, raw);
 #endif
         gc_mark_obj(maybe);
       }
@@ -305,6 +324,21 @@ size_t gc_collect(void)
 #endif
 
   return freed;
+}
+
+void gc_stats(FILE *)
+{
+#if DEBUG & DEBUG_GC
+  printf("stats\n"
+         "\t%lu slots (%luB) over %lu %s allocated, of which %lu (%luB) are "
+         "live.\n"
+         "\tCollected %lu times.\n",
+         (state->gc.pool.length * GC_CHUNK_DATA_SIZE) / 16,
+         state->gc.pool.length * GC_CHUNK_DATA_SIZE, state->gc.pool.length,
+         state->gc.pool.length == 1 ? "chunk" : "chunks",
+         state->gc.metadata.alloc_live, state->gc.metadata.alloc_live * 16,
+         state->gc.metadata.num_collections);
+#endif
 }
 
 /* Copyright (c) 2024 Anthony Bonkoski

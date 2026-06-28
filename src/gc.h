@@ -126,6 +126,10 @@ size_t gc_sweep(void);
  */
 size_t gc_collect(void);
 
+/** Print some stats for the current state of the GC to FILE.
+ */
+void gc_stats(FILE *);
+
 #endif
 
 /* Copyright (c) 2024 Anthony Bonkoski

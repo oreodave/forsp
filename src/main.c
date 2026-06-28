@@ -46,18 +46,24 @@ int main(int argc, char *argv[])
   state->input_str  = load_file(argv[1], &state->input_len);
   state->input_pos  = 0;
 
+#if DEBUG
+  printf("read: starting\n");
+#endif
   obj_t *obj = read();
+#if DEBUG
+  printf("read: finished\n");
+#if DEBUG & DEBUG_GC
+  printf("GC:read ");
+  gc_stats(stdout);
+#endif
+  printf("compute: starting\n");
+#endif
   compute(obj, state->env);
 
 #if DEBUG & DEBUG_GC
   BORDER();
-  printf("GC:exit stats\n"
-         "\t%luB over %lu %s allocated, of which %luB are live.\n"
-         "\tCollected %lu times.\n",
-         state->gc.pool.length * GC_CHUNK_DATA_SIZE, state->gc.pool.length,
-         state->gc.pool.length == 1 ? "chunk" : "chunks",
-         state->gc.metadata.alloc_live * 16,
-         state->gc.metadata.num_collections);
+  printf("GC:exit ");
+  gc_stats(stdout);
 #endif
 
   // free(state->input_str);

@@ -18,7 +18,9 @@
 #define DEBUG_OFF     (0b00000000)
 #define DEBUG_COMPUTE (0b00000001)
 #define DEBUG_GC      (0b00000010)
-#define DEBUG         (0)
+#ifndef DEBUG
+#define DEBUG (0)
+#endif
 
 #define FAIL(...)                 \
   do                              \
