@@ -75,10 +75,15 @@ obj_t *env_find(obj_t *env, obj_t *key)
   if (!IS_ATOM(key))
     FAIL("Expected 'key' (%lx) to be an atom in env_find()", (uintptr_t)key);
 
-  for (auto kv = DIRECT_CAR(env); env != NULL;
-       env = DIRECT_CDR(env), kv = DIRECT_CAR(env))
+  while (IS_PAIR(env))
+  {
+    obj_t *kv = DIRECT_CAR(env);
     if (key == DIRECT_CAR(kv))
+    {
       return DIRECT_CDR(kv);
+    }
+    env = DIRECT_CDR(env);
+  }
 
   FAIL("Failed to find in key='%s' in environment", as_atom(key));
 }
