@@ -93,31 +93,48 @@ obj_t *env_define(obj_t *env, obj_t *key, obj_t *val)
   return make_pair(make_pair(key, val), env);
 }
 
-obj_t *env_define_prim(obj_t *env, const char *name, void (*func)(obj_t **env))
+/// Constant time table for all the primitives we want to setup.
+
+struct PrimRecord
 {
-  return env_define(env, intern(name, strlen(name)), make_prim(func));
-}
+  const char *name;
+  size_t name_size;
+  prim_t *func;
+};
+
+#define MAKE_PRIM_RECORD(NAME, FUNC) \
+  {.name = (NAME), .name_size = sizeof(NAME) - 1, .func = (FUNC)}
+
+const struct PrimRecord RECORDS[] = {
+    MAKE_PRIM_RECORD("push", &prim_push),
+    MAKE_PRIM_RECORD("pop", &prim_pop),
+    MAKE_PRIM_RECORD("cons", &prim_cons),
+    MAKE_PRIM_RECORD("car", &prim_car),
+    MAKE_PRIM_RECORD("cdr", &prim_cdr),
+    MAKE_PRIM_RECORD("eq", &prim_eq),
+    MAKE_PRIM_RECORD("cswap", &prim_cswap),
+    MAKE_PRIM_RECORD("tag", &prim_tag),
+    MAKE_PRIM_RECORD("read", &prim_read),
+    MAKE_PRIM_RECORD("print", &prim_print),
+    MAKE_PRIM_RECORD("stack", &prim_stack),
+    MAKE_PRIM_RECORD("env", &prim_env),
+    MAKE_PRIM_RECORD("-", &prim_sub),
+    MAKE_PRIM_RECORD("*", &prim_mul),
+    MAKE_PRIM_RECORD("nand", &prim_nand),
+    MAKE_PRIM_RECORD("<<", &prim_lsh),
+    MAKE_PRIM_RECORD(">>", &prim_rsh),
+};
 
 void state_env_setup()
 {
   obj_t *env = NULL;
-  env        = env_define_prim(env, "push", &prim_push);
-  env        = env_define_prim(env, "pop", &prim_pop);
-  env        = env_define_prim(env, "cons", &prim_cons);
-  env        = env_define_prim(env, "car", &prim_car);
-  env        = env_define_prim(env, "cdr", &prim_cdr);
-  env        = env_define_prim(env, "eq", &prim_eq);
-  env        = env_define_prim(env, "cswap", &prim_cswap);
-  env        = env_define_prim(env, "tag", &prim_tag);
-  env        = env_define_prim(env, "read", &prim_read);
-  env        = env_define_prim(env, "print", &prim_print);
-  env        = env_define_prim(env, "stack", &prim_stack);
-  env        = env_define_prim(env, "env", &prim_env);
-  env        = env_define_prim(env, "-", &prim_sub);
-  env        = env_define_prim(env, "*", &prim_mul);
-  env        = env_define_prim(env, "nand", &prim_nand);
-  env        = env_define_prim(env, "<<", &prim_lsh);
-  env        = env_define_prim(env, ">>", &prim_rsh);
+  for (size_t i = 0; i < ARRSIZE(RECORDS); ++i)
+  {
+    const struct PrimRecord *const record = RECORDS + i;
+    obj_t *key   = intern(record->name, record->name_size);
+    obj_t *value = make_prim(record->func);
+    env          = env_define(env, key, value);
+  }
 
   state->env = env;
 }

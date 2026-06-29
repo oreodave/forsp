@@ -38,8 +38,9 @@
            "---------------\n");                                               \
   } while (0)
 
-#define MAX(A, B) ((A) > (B) ? (A) : (B))
-#define MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MAX(A, B)   ((A) > (B) ? (A) : (B))
+#define MIN(A, B)   ((A) < (B) ? (A) : (B))
+#define ARRSIZE(XS) (sizeof(XS) / sizeof((XS)[0]))
 
 typedef uint8_t u8;
 typedef uint16_t u16;
