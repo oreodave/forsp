@@ -7,6 +7,8 @@
 #include "gc.h"
 #include "state.h"
 
+#include <stdbit.h>
+
 static gc_t *gc = &state->gc;
 
 /******************************************************************************
@@ -233,14 +235,14 @@ size_t gc_sweep(void)
       if (to_free)
       {
         printf("\t%lu@%lu...%lu => %d slots to free.\n", i, w * 64,
-               (w + 1) * 64, __builtin_popcountll(to_free));
+               (w + 1) * 64, stdc_count_ones(to_free));
       }
 #endif
 
       for (u64 todo = to_free; todo; todo &= todo - 1)
       {
         // Find the lowest bit which is nonzero through a single hardware inst.
-        int bit           = __builtin_ctzll(todo);
+        int bit           = stdc_trailing_zeros_ull(todo);
         size_t slot_index = base + bit;
 
         // Put the slot designated by the bit into the free list.
@@ -249,7 +251,7 @@ size_t gc_sweep(void)
       }
 
       // Clear all live bits in one go.
-      freed += __builtin_popcountll(to_free);
+      freed += stdc_count_ones(to_free);
       c->live_bits[w] &= ~to_free;
     }
     memset(c->mark_bits, 0, sizeof(c->mark_bits));
