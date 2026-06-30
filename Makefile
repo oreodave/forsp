@@ -1,5 +1,5 @@
-CC=cc
-CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Wswitch-enum -Werror -ggdb -O1
+CC=gcc
+CFLAGS=-std=c23 -Wall -Wextra -Wpedantic -Wswitch-enum -Werror -ggdb -O2
 LDFLAGS=
 DEFS=
 
@@ -16,7 +16,7 @@ EXAMPLES=examples/church-numerals.fp examples/currying.fp examples/demo.fp \
 		examples/factorial.fp examples/fibonacci-functional.fp examples/forsp.fp \
 		examples/higher-order-functions.fp examples/tutorial.fp
 
-$(OUT): $(HEADERS) $(LIB) src/main.c | $(DIST)
+$(OUT): $(DIST) $(HEADERS) $(LIB) src/main.c
 	$(CC) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c $(LDFLAGS) $(DEFS)
 
 $(DIST):
