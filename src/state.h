@@ -32,7 +32,7 @@ typedef struct state
   obj_t *stack; // top-of-stack (implemented with pairs)
   obj_t *env;   // top-level / initial environment
   gc_t gc;      // allocator for pairs/closures
-  struct fstack // self-managed dynamic array of call frames
+  struct fstack // self-managed dynamic array of call frames - used in compute.c
   {
     u64 length, capacity;
     clos_t *frames;

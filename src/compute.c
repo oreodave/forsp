@@ -7,12 +7,16 @@
 #include "compute.h"
 #include "state.h"
 
-static inline bool frames_available()
+/******************************************************************************
+ * Frame Stack Helpers                                                        *
+ ******************************************************************************/
+
+static inline bool fstack_available()
 {
   return state->fstack.length > 0;
 }
 
-static inline void frames_push(obj_t *comp, obj_t *env)
+static inline void fstack_push(obj_t *comp, obj_t *env)
 {
   if (state->fstack.capacity - state->fstack.length == 0)
   {
@@ -26,11 +30,24 @@ static inline void frames_push(obj_t *comp, obj_t *env)
       (clos_t){.body = comp, .env = env};
 }
 
-static inline clos_t *frames_peek(void)
+static inline clos_t *fstack_peek(void)
 {
   return &state->fstack.frames[state->fstack.length - 1];
 }
 
+static inline void fstack_pop(void)
+{
+  --state->fstack.length;
+}
+
+/******************************************************************************
+ * Compute/Eval                                                               *
+ ******************************************************************************/
+
+/** eval function: the basic object-by-object evaluation model.
+ * This is called by `compute` (which see) on each member of a closure.
+ * eval pushes onto the call frame stack only when a closure is called.
+ */
 static inline void eval(clos_t *frame)
 {
   auto cmd    = DIRECT_CAR(frame->body);
@@ -54,21 +71,18 @@ static inline void eval(clos_t *frame)
     if (IS_CLOS(val))
     {
       auto new_clos = as_clos(val);
-      // equivalent to a recursive "compute" call.
-      if (frame->body == NULL)
-      {
-        // TCO for free?????
-        *frame = *new_clos;
-      }
+      if (frame->body)
+        // There is still work to be done in the current frame, establish a new
+        // call frame for this closure.
+        fstack_push(new_clos->body, new_clos->env);
       else
-      {
-        frames_push(new_clos->body, new_clos->env);
-      }
+        // If the current frames work is already complete, we can store this new
+        // closure onto it.  This is essentially a `tail call`.
+        *frame = *new_clos;
     }
     else if (IS_PRIM(val))
     {
-      auto prim = as_prim(val);
-      prim(&frame->env);
+      as_prim(val)(&frame->env);
     }
     else
     {
@@ -98,12 +112,12 @@ static inline void eval(clos_t *frame)
  */
 void compute(obj_t *comp, obj_t *env)
 {
-  frames_push(comp, env);
-  for (clos_t *frame = frames_peek(); frames_available(); frame = frames_peek())
+  fstack_push(comp, env);
+  for (clos_t *frame = fstack_peek(); fstack_available(); frame = fstack_peek())
   {
     if (!frame->body)
     {
-      --state->fstack.length;
+      fstack_pop();
       continue;
     }
 
