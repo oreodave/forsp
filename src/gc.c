@@ -334,7 +334,7 @@ size_t gc_collect(void)
   gc_mark_obj(state->env);
 
 #if DEBUG & DEBUG_GC
-  printf("GC:collect:frames: marking %lu frames.\n", state->frame_depth);
+  printf("GC:collect:frames: marking %lu frames.\n", state->fstack.length);
 #endif
   for (u64 i = 0; i < state->fstack.length; ++i)
   {
