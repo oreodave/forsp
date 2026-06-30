@@ -17,7 +17,7 @@ EXAMPLES=examples/church-numerals.fp examples/currying.fp examples/demo.fp \
 		examples/higher-order-functions.fp examples/tutorial.fp
 
 $(OUT): $(HEADERS) $(LIB) src/main.c | $(DIST)
-	$(CC) $(DEFS) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c
+	$(CC) $(CFLAGS) -Isrc -o $@ $(LIB) src/main.c $(LDFLAGS) $(DEFS)
 
 $(DIST):
 	mkdir -p $(DIST)
@@ -60,7 +60,7 @@ callperf: $(OUT)
 
 .PHONY: benchmark
 benchmark: $(OUT)
-	poop "./forsp.original ./examples/forsp.fp" "$(OUT) ./examples/forsp.fp" > new-benchmark.txt
+	poop -d 10000 "bin/forsp.original ./examples/forsp.fp" "$(OUT) ./examples/forsp.fp" > new-benchmark.txt
 
 scratch.fp:
 	echo "()" > scratch.fp

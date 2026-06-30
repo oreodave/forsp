@@ -52,6 +52,11 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+typedef float f32;
+typedef double f64;
+
+static_assert(sizeof(f64) == sizeof(u64));
+
 #endif
 
 /* Copyright (c) 2024 Anthony Bonkoski

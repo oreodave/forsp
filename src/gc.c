@@ -102,7 +102,7 @@ void gc_reset()
 
 /** Construct a new chunk and push it onto the pool.
  */
-static gc_chunk_t *gc_new_chunk(void)
+static inline gc_chunk_t *gc_new_chunk(void)
 {
   // aligned_alloc(4096, ...) gives 16-byte alignment for slots
   gc_chunk_t *c = aligned_alloc(16, sizeof(gc_chunk_t));
@@ -148,7 +148,7 @@ static gc_chunk_t *gc_new_chunk(void)
 
  * The slot position of the pointer in the chunk is stored in `slot_id`.
  */
-static gc_chunk_t *gc_find_chunk(void *raw_ptr, size_t *slot_id)
+static inline gc_chunk_t *gc_find_chunk(void *raw_ptr, size_t *slot_id)
 {
   for (size_t i = 0; i < gc->pool.length; ++i)
   {
@@ -276,7 +276,9 @@ size_t gc_sweep(void)
       MAX(GC_THRESHOLD_DEFAULT, gc->metadata.slots_live * 2);
 
 #if DEBUG & DEBUG_GC
-  printf("GC:sweep: freed %lu bytes\n", freed * 16);
+  printf("GC:sweep: slots_live: %lu\n", gc->metadata.slots_live);
+  printf("GC:sweep: threshold: %lu\n", gc->metadata.threshold);
+  printf("GC:sweep: freed %lu slots\n", freed);
 #endif
   return freed;
 }
@@ -323,6 +325,8 @@ size_t gc_collect(void)
 {
 #if DEBUG & DEBUG_GC
   ++gc->metadata.num_collections;
+  printf("GC:collect: Triggered as %lu live slots vs %lu threshold.\n",
+         gc->metadata.slots_live, gc->metadata.threshold);
 #endif
 
   gc_mark_stack_march();
