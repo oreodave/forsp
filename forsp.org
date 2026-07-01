@@ -1,45 +1,106 @@
-* PROJ Better allocation
-#+begin_src sh :results output :session nil :async
-grep -rn "malloc\|realloc" src/
-#+end_src
+#+filetags: forsp
 
-#+RESULTS:
-: src/main.c:19:  char *mem = malloc(*size + 1);
-: src/tagging.c:18:  char *atom_str = malloc(len + 1);
-: src/tagging.c:33:  pair_t *pair = malloc(sizeof(*pair));
-: src/tagging.c:40:  clos_t *clos = malloc(sizeof(*clos));
-: src/tagging.c:113:    vec->items    = realloc(vec->items, sizeof(item) * vec->capacity);
-: src/tagging.c:126:    vec->items    = realloc(vec->items, sizeof(*items) * vec->capacity);
+* TODO GC :gc:
+** TODO [#C] Liveness invariant check
+Benchmark if checking at ~gc_alloc~ that the slot we've popped off the
+free list is truly free via the bitmap degrades performance.
 
-Compare to:
-#+begin_src sh :results output :session nil :async
-grep -rn "free" src/
-#+end_src
+All callers of ~gc_free_list_push~ do already set liveness to 0, so
+this should not be a concern currently, but introducing the assertion
+just allows us to catch regressions easier.
 
-#+RESULTS:
+[[file:src/gc.c::__attribute__((noinline)) obj_t
+**gc_alloc()][Location]].
+** TODO [#A] Reader bugs :reader:
+The current interpreter fails to execute
+[[file:examples/loads-of-cons.fp]].  If we lower
+~GC_THRESHOLD_DEFAULT~ to a small number (i.e. 16) all examples fail
+to execute as well.
 
-We just allocate willy nilly really, without any oversight.  The only
-instance which is somewhat acceptable is [[file:src/main.c::char *mem
-= malloc(*size + 1);][src/main.c]] which is reading all source code in
-one go.  Atoms are somewhat acceptable as ~make_atom~ is only called
-when ~intern~ is called, which caches the memory itself.
+Behaviour:
+- The execution failure is always from ~env_find~ (i.e. unable to find
+  a key).
 
-So really, memory is only cleaned at program exit.  Unacceptable for a
-dynamic interpreted language really.
-** NOTE Observation on heap allocated objects
-Pairs and Closures are the other two things we allocate, and they
-happen to be identical in size (two pointers).
+RCA:
+- Initial debugging suggests the object parsed from the file is
+  incomplete, which implies a read phase issue.
+- Limited stack scan algorithm is responsible for marking objects in
+  the machine stack for primitives and the read phase.
+- The recursive ping-pong between ~read~ and ~read_list~ can make old
+  function stacks out of reach of the limited stack scan when a
+  ~gc_collect~ triggers, which means they are left unmarked and thus
+  free to reclaim.
+- Behaviour was mistakenly faulted to "too high GC pressure"
+  previously, which lead to an overly high GC collection threshold.
+  This hid the issues with the read phase by making collections only
+  trigger /after/ the read phase during ~compute/eval~, which is well
+  tested with regards to GC.
 
-So if we create our own allocator, they're the only two objects we'd
-need to be concerned about.  Naturally, as they're equivalently sized,
-we don't need to care about padding our allocations out at all, or
-having to tag them somehow in the allocator.
+Solutions to fix this follow.
+*** TODO Complete stack march
+Get the base pointer right from ~main~ and make every stack scan a
+complete one.  Blows up performance - or at least, I think it would.
+May not?
 
-A standard old dynamic bump allocator would do the trick here, if we
-didn't need to maintain pointers.  So arenas would be the next natural
-fit.  However, even with an arena we're still leaving garbage around.
-We need a way of collecting it, so we don't run out of memory for
-really large programs.
+NOTE: having a [[*Better ~gc_find_chunk~][better ~gc_find_chunk~]]
+could help here.
+*** TODO Suppress GC during read
+Lowest effort - just needs a flag on the ~state_t~ or ~gc_t~.  Won't
+introduce a branch in the ~gc_alloc~ since we can just ~&&~ the flag
+in the ~gc_collect~ branch.
+*** TODO Explicit root stack
+Painful and annoying.
+*** TODO Make reader iterative
+Largest effort.  Will be interesting at least.
+*** TODO Benchmark
+- Success: can it run
+  [[file:examples/loads-of-cons.fp][loads-of-cons]]?
+
+** TODO [#B] Collection threshold management :threshold:
+Our threshold automatically adjusts at the end of a sweep so we don't
+collect as often, but the rule is just a constant 2 times multiplier
+on the number of live slots (floored by GC_THRESHOLD_DEFAULT).  We may
+want to adjust the multiplier in low-yield situations where we haven't
+swept much.  Investigate this.
+
+[[file:src/gc.c::gc->metadata.threshold = MAX(GC_THRESHOLD_DEFAULT,
+ gc->metadata.slots_live * 2);][Location]]
+*** TODO Adaptive multiplier
+Based on yield from a sweep, we can increase the multiplier to lower
+collection pressure.
+
+if ~freed/pre_live_slots~ < 0.25 (or some other low constant), we can
+go for something like ~live_slots*4~ instead.
+
+We'll need to introduce more state for this i.e. something like a
+~growth_multiplier~ which we adjust based on the above condition.
+
+Then the threshold adjustment works against ~live_slots *
+growth_multiplier~.
+*** TODO Benchmark
+- Success: ~make examples~.
+** TODO [#B] Completely iterative marking :marking:
+~gc_mark_obj~ uses a mixed approach to its DFS: it starts with an
+iterative-based DFS using a statically sized stack, then spills into
+call based recursion when the stack is filled.
+
+Investigate switching this to a completely iterative approach using a
+dynamic array.
+
+[[file:src/gc.c::void gc_mark_obj(obj_t *obj)][Location]]
+*** TODO Switch to dynamic array
+Similar to the ~fstack~, construct a dynamic array implementation that
+resizes to avoid overflow.
+*** TODO Benchmark
+- Success: ~make examples~
+** TODO [#C] Better ~gc_find_chunk~ :find:
+Currently we just linear search through the chunks.  However, it might
+be worth optimising this further: as #chunks increases, so will the
+cost of this check.  Let's investigate this.
+*** TODO Sorted chunk list + bsearch
+*** TODO Hashmap
+*** TODO Benchmark
+- Success: ~make examples~
 ** WAIT Cheney's algorithm
 2026-06-21: My initial Cheney's algorithm impl didn't go so well.
 Leaving this in WAIT for potential future work.  Looking at other GC
@@ -54,7 +115,7 @@ will be where we stick em.
 We consider ~to~ to be a form of bump allocator so we'll use
 ~bump_ptr~ to represent the bump index.
 
-*** DONE Forwarding pointers
+*** WAIT Forwarding pointers
 We need a way to say that a given allocation has actually been moved
 over to ~to~ space; this will allow us to stop the later BFS in cases
 where memory has already been copied to ~to~ space.
@@ -70,7 +131,7 @@ of an allocation.
 
 We'll also want functions to return the pointer to the forwarded cell
 (i.e. the copied object) given an object pointer.
-*** DONE Evacuate (move from ~from~ to ~to~)
+*** WAIT Evacuate (move from ~from~ to ~to~)
 Evacuate is a function that drives this entire collection routine.
 Given a pointer ~p~, it works roughly like this:
 - copy contents of ~p~ over to ~to~ space, incrementing ~bump_ptr~.
@@ -80,30 +141,20 @@ Given a pointer ~p~, it works roughly like this:
 So, when we look at ~p~ currently (i.e. when looking at stuff that
 references ~p~), checking the first field for a forwarding pointer
 should be enough to say that ~p~ has been migrated.
-*** DONE Core algorithm
-**** DONE The initial sweep
-We start by evacuating all the roots.  In Forsp our main roots will be
-the ~stack~ and any ~comp~/~env~ parameters we get when doing a
-recursive ~compute~.
+*** WAIT Core algorithm
+**** WAIT The initial sweep
+We start by evacuating all the roots:
+- The stack scan will take care of any in-flight objects in C-stack
+  variables.
+- The frame stack scan will take care of our ~comp~/~env~ pairs
+- State stack and env are obvious.
 
 This should leave us with a few forwarding pointers in ~from~ space,
 and a couple allocations to ~to~ space.
-***** DONE Root maintenance
-A few more words regarding the ~comp/env~ parameters we get in a
-~compute~ call.
-
-We enter a new ~compute~ call every time we call a closure, which uses
-its own ~comp~ and ~env~.  If we collect during ~compute~,
-~comp~/~env~ will most likely point to garbage.  This is very bad.
-
-To make the GC aware of the fact that we want updates on these
-pointers, we need to maintain a ~root~ stack that stores pointers to
-the things we want updated.  Essentially a stack of ~obj_t **~.
-
-Then, during the initial sweep when we're evacuating the roots, we can
-both scan this root stack to do so /and/ update the roots with the new
-pointers over in ~to~ space.
-**** DONE The BFS
+***** WAIT Root maintenance
+Both the stack scan and the frame stack scan need to update, since
+evacuation moves pointers into ~to~ space.
+**** WAIT The BFS
 Then, we scan through all objects in ~to~ space (which should be our
 roots) to move all the still accessible memory located in ~from~ space
 into ~to~ space.  We do this by maintaining a ~scan_ptr~ which starts
@@ -123,28 +174,21 @@ The routine goes as so:
 Once we escape the loop, we must have scanned everything accessible
 from ~to~ space, which by virtue must be everything accessible in the
 program from the roots.
-**** DONE The sweep
+**** WAIT The sweep
 Once we've evacuated everything necessary in ~to~ space, we:
 - Update pointers in the ~compute~ stack for ~comp/env~
 - Cleanup all of ~from~ space
 - Swap ~to~ and ~from~ such that any new allocations will occur in
   ~to~ instead of ~from~.
-*** TODO Bugs
-There are a few bugs when it comes to updating C stack variables
-during ~compute~ runs.
-** TODO Generational GC
-Most objects die young.  This is certainly the case for closures,
-which drive most of the fun in Forsp.
+** Benchmarking
+Performance benchmarking should be done against
+[[file:examples/bigrange.fp][bigrange]].  It's a particularly intense
+program.
 
-A generational GC essentially means we have a further partitioning by
-/generation/ of heap space.  We have a ~nursery~, which is a sequence
-of fresh allocations which we may maintain via Cheney's algorithm, and
-collect often.  Any objects that survive a collection in the ~nursery~
-are considered old, and thus can be relegated to the ~old age home~,
-which experiences less frequent collections and can use less expensive
-algorithms to maintain.
+The original =xorforsp= project cannot run this program by the way -
+so we're finally beating the original in terms of being able to
+interpret a program it can't.
 
-Might be worth considering if analysis suggests it's worth it.
 * TODO Big integers
 We can only compute $18!$.  Unacceptable.  It's due to only having 56
 bit integers.  We could get away with bumping this up to 63 bits by
@@ -154,25 +198,5 @@ What we really need is Big Integers.  Allocated on the heap, they
 allow us to store and compute with arbitrarily wide integers.
 * TODO Floating point numbers
 Obvious.
-* TODO Replace recursion with queues in ~compute~
-On first call to ~compute~, you pass an expression and an environment.
-
-The only time we recur is when dealing with closures.  Instead of
-arranging machine-stack based recursion, why not setup a queue of
-these closures (with the parameters being the first member) and yield
-out of this queue?
 * TODO Consider compiling to x86_64 directly
-* Opencode
-Got qwen3.6 to make a rough list of possible optimisations we could
-do.
-
-|---------------------------------+--------------------------------------------------------|
-| Optimization                    | Impact                                                 |
-|---------------------------------+--------------------------------------------------------|
-| Allocator                       | High — eliminates malloc overhead for most allocations |
-| Hash table for interning        | High — O(1) atom lookup during parsing                 |
-| Environment lookup optimization | High — O(1) or O(log n) variable lookup                |
-| Iterative print                 | Low — only matters for very deep structures            |
-| Add REPL/multi-expression       | Medium — usability                                     |
-| Add + primitive                 | Low — convenience                                      |
-|---------------------------------+--------------------------------------------------------|
+* Done tasks
